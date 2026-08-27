@@ -69,8 +69,160 @@ th,td{padding:10px;border-top:1px solid #1d506f;text-align:left}
 th{position:sticky;top:0;background:#082e52}
 td:last-child,th:last-child{text-align:right}
 .footertext{color:var(--muted);font-size:11px;line-height:1.6;text-align:center;margin:20px auto;max-width:860px}
+
+.breakdown-toggle{
+  width:100%;
+  border:0;
+  background:linear-gradient(90deg,#0b3159,#0d3b68);
+  color:#fff;
+  padding:18px 22px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:18px;
+  cursor:pointer;
+  text-align:left;
+}
+.breakdown-toggle:hover{background:linear-gradient(90deg,#0d3a67,#104777)}
+.breakdown-copy{display:flex;flex-direction:column;gap:4px;min-width:0}
+.breakdown-label{font-size:13px;color:#b7c7d6;font-weight:700}
+.breakdown-set{font-size:20px;font-weight:900;color:#49d05a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.breakdown-action{display:flex;align-items:center;gap:10px;font-weight:900;color:#49d05a;white-space:nowrap}
+.breakdown-arrow{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:34px;height:34px;
+  border:2px solid #49d05a;
+  border-radius:999px;
+  font-size:26px;
+  line-height:1;
+  transition:transform .2s ease;
+}
+.breakdown-arrow.open{transform:rotate(180deg)}
+@media(max-width:700px){
+  .breakdown-toggle{align-items:flex-start;flex-direction:column}
+  .breakdown-action{width:100%;justify-content:space-between}
+}
+
+
+.info-grid{
+  margin-top:28px;
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:18px;
+}
+.info-tile{
+  background:#0d3b67;
+  border:1px solid #3e6f9b;
+  border-radius:20px;
+  padding:24px 26px;
+  min-height:168px;
+}
+.info-tile strong{
+  display:block;
+  margin-bottom:10px;
+  font-size:18px;
+  line-height:1.3;
+  color:#ffffff;
+}
+.info-tile span{
+  display:block;
+  color:#dce7f0;
+  font-size:15px;
+  line-height:1.65;
+}
+
+.condition-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:10px;
+  margin-top:18px;
+}
+.condition-card{
+  display:flex;
+  align-items:flex-start;
+  gap:10px;
+  border:1px solid #275879;
+  border-radius:14px;
+  padding:14px;
+  cursor:pointer;
+  background:#082e52;
+  transition:border-color .15s ease, box-shadow .15s ease, background .15s ease;
+}
+.condition-card:hover{
+  border-color:#2c9bee;
+  background:#0a365f;
+}
+.condition-card.active{
+  border-color:#49d05a;
+  box-shadow:inset 0 0 0 1px #49d05a;
+  background:#0b3b67;
+}
+.condition-card input{
+  width:auto;
+  height:auto;
+  margin-top:3px;
+}
+.condition-card b{
+  display:block;
+  margin-bottom:3px;
+}
+.condition-note{
+  margin-top:12px;
+  color:#b7c7d6;
+  font-size:12px;
+  line-height:1.5;
+}
+@media(max-width:650px){
+  .condition-grid{grid-template-columns:1fr}
+}
+
+
+.offer-btn{
+  width:100%;
+  margin-top:18px;
+  border:2px solid #ffb04a;
+  border-radius:16px;
+  background:linear-gradient(135deg,#ff8a00,#f36f00);
+  color:#ffffff;
+  padding:16px 18px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:12px;
+  cursor:pointer;
+  font-weight:900;
+  box-shadow:0 10px 26px rgba(255,138,0,.28);
+  transition:transform .15s ease,filter .15s ease,box-shadow .15s ease;
+}
+.offer-btn:hover:not(:disabled){
+  transform:translateY(-2px);
+  filter:brightness(1.06);
+  box-shadow:0 14px 34px rgba(255,138,0,.38);
+}
+.offer-btn:disabled{
+  cursor:not-allowed;
+  opacity:.55;
+  filter:grayscale(.15);
+  box-shadow:none;
+}
+.offer-btn svg{width:26px;height:26px;flex:0 0 auto}
+.offer-btn-copy{display:flex;flex-direction:column;align-items:flex-start;line-height:1.15}
+.offer-btn-title{font-size:17px}
+.offer-sub{margin-top:4px;font-size:11px;font-weight:700;opacity:.9}
+
+@media(max-width:900px){
+  .info-grid{grid-template-columns:1fr}
+  .info-tile{min-height:auto}
+}
+
 @media(max-width:900px){.grid{grid-template-columns:1fr}.badge{display:none}.big{font-size:38px}}
 </style>
+
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js"></script>
+
 </head>
 <body>
 <header>
@@ -109,12 +261,48 @@ td:last-child,th:last-child{text-align:right}
           <label class="level"><input type="radio" name="level" value="master"><span><b>Masterset</b><span class="muted">Alle genummerde kaarten plus beschikbare normal- en holo-uitvoeringen.</span></span></label>
         </div>
       </div>
+
+      <div class="section">
+        <span class="step">3</span><h2>Kies de staat van de set</h2>
+        <div class="condition-grid" id="conditionGrid">
+          <label class="condition-card">
+            <input type="radio" name="condition" value="mint">
+            <span><b>Mint</b><span class="muted">Zo goed als nieuw, zonder zichtbare gebruikssporen.</span></span>
+          </label>
+          <label class="condition-card active">
+            <input type="radio" name="condition" value="near-mint" checked>
+            <span><b>Near Mint</b><span class="muted">Zeer nette staat met hooguit minimale gebruikssporen.</span></span>
+          </label>
+          <label class="condition-card">
+            <input type="radio" name="condition" value="excellent">
+            <span><b>Excellent</b><span class="muted">Lichte gebruikssporen, maar nog duidelijk netjes.</span></span>
+          </label>
+          <label class="condition-card">
+            <input type="radio" name="condition" value="good">
+            <span><b>Good</b><span class="muted">Duidelijke gebruikssporen, maar nog goed verzamelbaar.</span></span>
+          </label>
+          <label class="condition-card">
+            <input type="radio" name="condition" value="light-played">
+            <span><b>Light Played</b><span class="muted">Meerdere zichtbare gebruikssporen of lichte rand-/oppervlakteslijtage.</span></span>
+          </label>
+          <label class="condition-card">
+            <input type="radio" name="condition" value="played">
+            <span><b>Played</b><span class="muted">Sterk gebruikt met duidelijke slijtage.</span></span>
+          </label>
+          <label class="condition-card">
+            <input type="radio" name="condition" value="poor">
+            <span><b>Poor</b><span class="muted">Zwaar beschadigd of sterk versleten.</span></span>
+          </label>
+        </div>
+        <div class="condition-note">Near Mint is standaard. De gekozen conditie wordt als waardecorrectie toegepast op de 30-dagenwaarde.</div>
+      </div>
+
     </section>
 
     <aside class="result">
       <div class="muted" id="resultCode">EN · KIES EEN SET</div>
       <h3 id="resultTitle">Setwaarde laden</h3>
-      <div class="tags"><span class="tag" id="tagLevel">Basic set</span><span class="tag">Near Mint</span></div>
+      <div class="tags"><span class="tag" id="tagLevel">Basic set</span><span class="tag" id="tagCondition">Near Mint</span></div>
 
       <div class="box" id="loadingBox" style="display:none">
         <b id="loadingText">Kaartprijzen ophalen · 0%</b>
@@ -123,7 +311,7 @@ td:last-child,th:last-child{text-align:right}
       </div>
 
       <div class="box">
-        <div class="muted"><b>Marktwaarde · Cardmarket avg30</b></div>
+        <div class="muted"><b>Marktwaarde · Cardmarket avg30 · gecorrigeerd voor conditie</b></div>
         <div class="big" id="marketValue">—</div>
         <div class="muted" id="coverageLine">Nog geen prijzen</div>
       </div>
@@ -131,8 +319,21 @@ td:last-child,th:last-child{text-align:right}
       <div class="box buy">
         <b>ZamexCards inkoopwaarde</b>
         <div class="big" id="buyValue">—</div>
-        <div style="font-size:12px;font-weight:700">80% van de gedekte Near Mint 30-dagenwaarde</div>
+        <div style="font-size:12px;font-weight:700">80% van de gecorrigeerde 30-dagenwaarde</div>
       </div>
+
+      <button id="pdfOfferBtn" class="offer-btn" type="button" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <path d="M14 2v6h6"></path>
+          <path d="M8 13h8"></path>
+          <path d="M8 17h6"></path>
+        </svg>
+        <span class="offer-btn-copy">
+          <span class="offer-btn-title">Maak offerte als PDF</span>
+          <span class="offer-sub">Download compleet overzicht</span>
+        </span>
+      </button>
 
       <div class="box">
         <div style="display:flex;justify-content:space-between"><b>Prijsdekking</b><b id="coveragePct">0%</b></div>
@@ -142,13 +343,39 @@ td:last-child,th:last-child{text-align:right}
     </aside>
   </div>
 
+  
   <div class="breakdown">
-    <button id="toggleBreakdown">Klik om alle kaartprijzen te bekijken</button>
+    <button id="toggleBreakdown" class="breakdown-toggle">
+      <span class="breakdown-copy">
+        <span class="breakdown-label">Zie hier alle kaarten uit de set met prijs</span>
+        <span class="breakdown-set" id="breakdownSetName">Kies eerst een set</span>
+      </span>
+      <span class="breakdown-action">
+        <span id="breakdownActionText">Bekijk alle kaarten</span>
+        <span class="breakdown-arrow" id="breakdownArrow">⌄</span>
+      </span>
+    </button>
     <div class="tablewrap" id="tableWrap">
       <table>
         <thead><tr><th>Nummer</th><th>Kaartnaam</th><th>Uitvoering</th><th>Avg. 30 dagen</th></tr></thead>
         <tbody id="priceRows"></tbody>
       </table>
+    </div>
+  </div>
+
+
+  <div class="info-grid">
+    <div class="info-tile">
+      <strong>Zo werkt de ZamexCards Setwaarde Calculator</strong>
+      <span>Kies de taal, zoek de Pokémon-set, selecteer basic set, volledige set of masterset en kies daarna de staat van de set.</span>
+    </div>
+    <div class="info-tile">
+      <strong>ZamexCards marktwaarde</strong>
+      <span>ZamexCards telt de beschikbare gemiddelde kaartprijzen van de laatste 30 dagen bij elkaar op tot één duidelijke setwaarde.</span>
+    </div>
+    <div class="info-tile">
+      <strong>ZamexCards inkoopwaarde</strong>
+      <span>De getoonde inkoopwaarde is 80% van de berekende marktwaarde. Het definitieve aanbod volgt na controle van compleetheid en conditie.</span>
     </div>
   </div>
 
@@ -163,7 +390,99 @@ const LANGS={
   Koreaans:{codes:['ko'],short:'KR',label:'Korean'},
   Chinees:{codes:['zh-tw','zh-cn'],short:'ZH',label:'Chinese'}
 };
-let language='Engels', sets=[], filteredSets=[], selectedSet=null, setDetail=null, cards=[], level='basic';
+
+
+const ENGLISH_SET_NAMES={
+  "m2a":"MEGA Dream ex",
+  "m2":"Inferno X",
+  "m1s":"Mega Symphonia",
+  "m1l":"Mega Brave",
+  "sv11b":"Black Bolt",
+  "sv11w":"White Flare",
+  "sv10":"The Glory of Team Rocket",
+  "sv9a":"Heat Wave Arena",
+  "sv9":"Battle Partners",
+  "sv8a":"Terastal Festival ex",
+  "sv8":"Super Electric Breaker",
+  "sv7a":"Paradise Dragona",
+  "sv7":"Stellar Miracle",
+  "sv6a":"Night Wanderer",
+  "sv6":"Mask of Change",
+  "sv5a":"Crimson Haze",
+  "sv5k":"Wild Force",
+  "sv5m":"Cyber Judge",
+  "sv4a":"Shiny Treasure ex",
+  "sv4k":"Ancient Roar",
+  "sv4m":"Future Flash",
+  "sv3a":"Raging Surf",
+  "sv3":"Ruler of the Black Flame",
+  "sv2a":"Pokemon Card 151",
+  "sv2d":"Clay Burst",
+  "sv2p":"Snow Hazard",
+  "sv1a":"Triplet Beat",
+  "sv1v":"Violet ex",
+  "sv1s":"Scarlet ex",
+  "s12a":"VSTAR Universe",
+  "s12":"Paradigm Trigger",
+  "s11a":"Incandescent Arcana",
+  "s11":"Lost Abyss",
+  "s10b":"Pokemon GO",
+  "s10a":"Dark Phantasma",
+  "s10d":"Time Gazer",
+  "s10p":"Space Juggler",
+  "s9a":"Battle Region",
+  "s9":"Star Birth",
+  "s8b":"VMAX Climax",
+  "s8":"Fusion Arts",
+  "s7r":"Blue Sky Stream",
+  "s7d":"Skyscraping Perfect",
+  "s6a":"Eevee Heroes",
+  "s6k":"Jet-Black Spirit",
+  "s6h":"Silver Lance",
+  "s5a":"Matchless Fighters",
+  "s5r":"Rapid Strike Master",
+  "s5i":"Single Strike Master",
+  "s4a":"Shiny Star V",
+  "s4":"Astonishing Volt Tackle",
+  "s3a":"Legendary Heartbeat",
+  "s3":"Infinity Zone",
+  "sm12a":"Tag Team GX All Stars",
+  "sm12":"Alter Genesis",
+  "sm11b":"Dream League",
+  "sm11a":"Remix Bout",
+  "sm11":"Miracle Twin",
+  "sm10b":"Sky Legend",
+  "sm10a":"GG End",
+  "sm10":"Double Blaze",
+  "sm9a":"Night Unison",
+  "sm9":"Tag Bolt",
+  "sm8b":"GX Ultra Shiny",
+  "sm8a":"Dark Order",
+  "sm8":"Super-Burst Impact",
+  "sm7b":"Fairy Rise",
+  "sm7a":"Thunderclap Spark",
+  "sm7":"Sky-Splitting Charisma",
+  "sm6b":"Champion Road",
+  "sm6a":"Dragon Storm",
+  "sm6":"Forbidden Light",
+  "sm5p":"Ultra Force",
+  "sm5m":"Ultra Moon",
+  "sm5s":"Ultra Sun",
+  "sm4a":"GX Battle Boost"
+};
+let englishSetNames=new Map();
+
+const CONDITIONS={
+  'mint':{label:'Mint',factor:1.05},
+  'near-mint':{label:'Near Mint',factor:1.00},
+  'excellent':{label:'Excellent',factor:0.90},
+  'good':{label:'Good',factor:0.80},
+  'light-played':{label:'Light Played',factor:0.70},
+  'played':{label:'Played',factor:0.60},
+  'poor':{label:'Poor',factor:0.40}
+};
+
+let language='Engels', sets=[], filteredSets=[], selectedSet=null, setDetail=null, cards=[], level='basic', condition='near-mint', pricesLoading=false;
 
 const $=id=>document.getElementById(id);
 const euro=v=>new Intl.NumberFormat('nl-NL',{style:'currency',currency:'EUR'}).format(v||0);
@@ -201,11 +520,31 @@ async function loadSets(){
   $('search').disabled=true;
   $('setSelect').disabled=true;
   $('setSelect').innerHTML='<option>Sets laden…</option>';
-  sets=[]; filteredSets=[]; selectedSet=null; setDetail=null; cards=[];
+  sets=[]; filteredSets=[]; selectedSet=null; setDetail=null; cards=[]; pricesLoading=false;
   updateResult();
 
   try{
     const codes=LANGS[language].codes;
+
+    // Voor Japanse, Koreaanse en Chinese sets halen we ook de Engelse catalogus op.
+    // Hiermee tonen we waar mogelijk altijd de Engelse setnaam.
+    englishSetNames=new Map();
+    if(language!=='Engels'){
+      try{
+        let englishList;
+        try{
+          englishList=await fetchTimeout(`${API}/en/sets?sort:field=releaseDate&sort:order=DESC`,8000);
+        }catch(e){
+          englishList=await fetchTimeout(`${API}/en/sets`,8000);
+        }
+        (Array.isArray(englishList)?englishList:[]).forEach(s=>{
+          englishSetNames.set(String(s.id||'').toLowerCase(),s.name);
+        });
+      }catch(e){
+        // De handmatige Engelse namen hieronder blijven als fallback werken.
+      }
+    }
+
     const results=await Promise.allSettled(codes.map(async code=>{
       let list;
       try{
@@ -213,7 +552,14 @@ async function loadSets(){
       }catch(e){
         list=await fetchTimeout(`${API}/${code}/sets`,8000);
       }
-      return (Array.isArray(list)?list:[]).map(s=>({...s,apiCode:code,sourceId:s.id,id:`${code}:${s.id}`}));
+      return (Array.isArray(list)?list:[]).map(s=>{
+        const sourceId=String(s.id||'');
+        const key=sourceId.toLowerCase();
+        const englishName=language==='Engels'
+          ? s.name
+          : (englishSetNames.get(key)||ENGLISH_SET_NAMES[key]||null);
+        return {...s,apiCode:code,sourceId:s.id,id:`${code}:${s.id}`,englishName};
+      });
     }));
 
     sets=results.flatMap(r=>r.status==='fulfilled'?r.value:[]);
@@ -233,67 +579,14 @@ async function loadSets(){
   }
 }
 
-// Engelse weergavenamen voor Japanse, Koreaanse en Chinese sets.
-// De API-setcode blijft leidend; alleen de zichtbare setnaam wordt vertaald.
-const ENGLISH_SET_NAMES={
-  // Scarlet & Violet - Japan / Korea / Traditional Chinese
-  'SV1S':'Scarlet ex','SV1V':'Violet ex','SV1A':'Triplet Beat',
-  'SV2P':'Snow Hazard','SV2D':'Clay Burst','SV2A':'Pokémon Card 151',
-  'SV3':'Ruler of the Black Flame','SV3A':'Raging Surf',
-  'SV4K':'Ancient Roar','SV4M':'Future Flash','SV4A':'Shiny Treasure ex',
-  'SV5K':'Wild Force','SV5M':'Cyber Judge','SV5A':'Crimson Haze',
-  'SV6':'Mask of Change','SV6A':'Night Wanderer',
-  'SV7':'Stellar Miracle','SV7A':'Paradise Dragona',
-  'SV8':'Super Electric Breaker','SV8A':'Terastal Festival ex',
-  'SV9':'Battle Partners','SV9A':'Heat Wave Arena',
-  'SV10':'Glory of Team Rocket','SV11B':'Black Bolt','SV11W':'White Flare',
-  // Mega Evolution era
-  'M1L':'Mega Brave','M1S':'Mega Symphonia','M2':'Inferno X',
-  // Sword & Shield - Japan / Korea / Traditional Chinese
-  'S1W':'Sword','S1H':'Shield','S1A':'VMAX Rising','S2':'Rebellion Crash',
-  'S2A':'Explosive Walker','S3':'Infinity Zone','S3A':'Legendary Heartbeat',
-  'S4':'Astonishing Volt Tackle','S4A':'Shiny Star V',
-  'S5I':'Single Strike Master','S5R':'Rapid Strike Master','S5A':'Matchless Fighters',
-  'S6H':'Silver Lance','S6K':'Jet-Black Spirit','S6A':'Eevee Heroes',
-  'S7R':'Blue Sky Stream','S7D':'Skyscraping Perfect','S8':'Fusion Arts',
-  'S8A':'25th Anniversary Collection','S8B':'VMAX Climax','S9':'Star Birth',
-  'S9A':'Battle Region','S10D':'Time Gazer','S10P':'Space Juggler',
-  'S10A':'Dark Phantasma','S10B':'Pokémon GO','S11':'Lost Abyss',
-  'S11A':'Incandescent Arcana','S12':'Paradigm Trigger','S12A':'VSTAR Universe',
-  // Simplified Chinese - main expansions
-  'CS1A':'Dynamax Clash','CS1B':'Dynamax Clash',
-  'CS2A':'Vivid Portrayals','CS2B':'Vivid Portrayals',
-  'CS3A':'Primordial Arts','CS3B':'Primordial Arts',
-  'CS4A':'Polychromatic Gathering','CS4B':'Polychromatic Gathering',
-  'CS5A':'Gallant Galaxy','CS5B':'Gallant Galaxy',
-  'CS6A':'Marine Shadow','CS6B':'Marine Shadow',
-  // Simplified Chinese - booster decks
-  'CS1.5':'Dynamax Tactics','CS2.5':'Brilliant Counterattack','CS3.5':'Scorching Skies',
-  'CS4.5':'Flame Dance of the End','CS5.5':'Overshadowed Radiance','CS6.5':'Victory Lodestar',
-  // Simplified Chinese - Scarlet & Violet
-  'CSV1':'Ancient Times, Future Progress','CSV2':'Miracle Journey','CSV3':'Fearless Terastal',
-  'CSV4':'Bonus Round','CSV5':'Ardent Obsidian','CSV6':'Arcane Truth',
-  'CSV7':'Blade Awakening','CSV8':'Sparkling Fable','CSV9':'Stellar Crystal',
-  'CSV10':'Together in Pursuit of Glory',
-  // Simplified Chinese starter decks
-  'CS1D':'Dynamax Clash V Starter Deck','CS2D':'Vivid Portrayals V Starter Deck',
-  'CS3D':'Primordial Arts V Starter Deck','CS4D':'Polychromatic Gathering V Starter Deck',
-  'CS5D':'Gallant Galaxy V Starter Deck'
-};
-function normalizedSetCode(s){
-  return String(s?.sourceId||s?.id||'').split(':').pop().trim().toUpperCase();
-}
-function englishSetNameFromCode(code){
-  const c=String(code||'').toUpperCase();
-  if(ENGLISH_SET_NAMES[c]) return ENGLISH_SET_NAMES[c];
-  // Sommige Chinese deckcodes hebben nog een extra A/B/C achter de basiscode, bv. CS4DA.
-  const deckBase=c.match(/^(CS[1-6]D)/)?.[1];
-  if(deckBase && ENGLISH_SET_NAMES[deckBase]) return ENGLISH_SET_NAMES[deckBase];
-  return '';
-}
 function displayName(s){
-  if(language==='Engels') return s?.name || `English set ${normalizedSetCode(s)}`;
-  return englishSetNameFromCode(normalizedSetCode(s)) || s?.name || `${LANGS[language].label} set ${normalizedSetCode(s)}`;
+  if(!s) return '';
+  if(language==='Engels') return s.name || `English set ${String(s.sourceId||'').toUpperCase()}`;
+  const key=String(s.sourceId||'').toLowerCase();
+  return s.englishName
+    || englishSetNames.get(key)
+    || ENGLISH_SET_NAMES[key]
+    || `${LANGS[language].label} set ${String(s.sourceId||'').toUpperCase()}`;
 }
 
 function renderSetOptions(){
@@ -311,7 +604,7 @@ function renderSetOptions(){
 
 $('search').addEventListener('input',()=>{
   const q=$('search').value.trim().toLowerCase();
-  filteredSets=sets.filter(s=>`${displayName(s)} ${s.sourceId}`.toLowerCase().includes(q));
+  filteredSets=sets.filter(s=>`${displayName(s)} ${s.name||''} ${s.sourceId}`.toLowerCase().includes(q));
   renderSetOptions();
   if(filteredSets.length) chooseSet(filteredSets[0].id);
 });
@@ -327,7 +620,8 @@ async function chooseSet(id){
     $('setInfo').classList.add('show');
     $('setName').textContent=displayName(selectedSet);
     const date=setDetail.releaseDate?new Date(setDetail.releaseDate+'T12:00:00').toLocaleDateString('nl-NL',{day:'numeric',month:'long',year:'numeric'}):'Releasedatum onbekend';
-    $('setMeta').textContent=`${setDetail.serie?.name||LANGS[language].short} · ${date}`;
+    const seriesLabel=language==='Engels'?(setDetail.serie?.name||LANGS[language].short):LANGS[language].label;
+    $('setMeta').textContent=`${seriesLabel} · ${date}`;
     if(setDetail.logo){
       $('setLogo').src=setDetail.logo+'.webp';
       $('setLogo').style.display='block';
@@ -341,6 +635,7 @@ async function chooseSet(id){
 async function loadCardPrices(){
   if(!setDetail) return;
   cards=[];
+  pricesLoading=true;
   const list=Array.isArray(setDetail.cards)?setDetail.cards:[];
   $('loadingBox').style.display='block';
   $('loadProgress').style.width='0%';
@@ -362,6 +657,7 @@ async function loadCardPrices(){
     $('loadingText').textContent=`Kaartprijzen ophalen · ${pct}%`;
     updateResult();
   }
+  pricesLoading=false;
   $('loadingBox').style.display='none';
   updateResult();
 }
@@ -393,13 +689,16 @@ function calc(){
   const total=setDetail.cardCount?.total||setDetail.cards?.length||0;
   const expected=level==='basic'?official:level==='full'?total:count;
   count=Math.max(count,expected||0);
-  return {value,priced,count,missing:Math.max(count-priced,0),rows};
+  const factor=CONDITIONS[condition]?.factor||1;
+  return {value:value*factor,rawValue:value,factor,priced,count,missing:Math.max(count-priced,0),rows};
 }
 
 function updateResult(){
   $('resultCode').textContent=`${LANGS[language].short} · ${selectedSet?selectedSet.sourceId.toUpperCase():'KIES EEN SET'}`;
   $('resultTitle').textContent=selectedSet?displayName(selectedSet):'Setwaarde laden';
+  if($('breakdownSetName')) $('breakdownSetName').textContent=selectedSet?displayName(selectedSet):'Kies eerst een set';
   $('tagLevel').textContent=level==='basic'?'Basic set':level==='full'?'Volledige set':'Masterset';
+  if($('tagCondition')) $('tagCondition').textContent=CONDITIONS[condition]?.label||'Near Mint';
 
   const c=calc();
   $('marketValue').textContent=c.priced?euro(c.value):'—';
@@ -409,10 +708,269 @@ function updateResult(){
   $('coverageProgress').style.width=pct+'%';
   $('coverageLine').textContent=c.priced?`${c.priced} van ${c.count} geprijsd · Gem. ${euro(c.value/c.priced)}`:'Nog geen prijzen';
   $('missingLine').textContent=c.missing?`${c.missing} uitvoeringen zonder betrouwbare Cardmarket-30-dagenprijs tellen niet mee.`:'';
+  const pdfBtn=$('pdfOfferBtn');
+  if(pdfBtn){
+    pdfBtn.disabled=pricesLoading||!selectedSet||!setDetail||!c.priced;
+    const sub=pdfBtn.querySelector('.offer-sub');
+    if(sub) sub.textContent=pricesLoading?'Wacht tot alle prijzen geladen zijn':'Download compleet overzicht';
+  }
 
   const rows=[...c.rows].sort((a,b)=>num(a.localId)-num(b.localId)||String(a.localId).localeCompare(String(b.localId)));
   $('priceRows').innerHTML=rows.map(r=>`<tr><td>${r.localId||''}</td><td>${escapeHtml(r.name||'')}</td><td>${r.variant||''}</td><td>${r.price==null?'Niet beschikbaar':euro(r.price)}</td></tr>`).join('');
 }
+
+
+function pdfMoney(v){
+  return 'EUR ' + Number(v||0).toLocaleString('nl-NL',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+
+function safeFilePart(s){
+  return String(s||'set')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-zA-Z0-9_-]+/g,'-')
+    .replace(/-+/g,'-')
+    .replace(/^-|-$/g,'')
+    .slice(0,70) || 'set';
+}
+
+async function loadLogoDataUrl(){
+  const response=await fetch('./zamexcards-logo.png?v=6',{cache:'no-store'});
+  if(!response.ok) throw new Error('ZamexCards logo kon niet worden geladen.');
+  const blob=await response.blob();
+  return await new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onload=()=>resolve(reader.result);
+    reader.onerror=()=>reject(new Error('ZamexCards logo kon niet worden gelezen.'));
+    reader.readAsDataURL(blob);
+  });
+}
+
+function addPdfBrandHeader(doc,logoData,compact=false){
+  const pageW=doc.internal.pageSize.getWidth();
+  const h=compact?21:28;
+  doc.setFillColor(4,25,48);
+  doc.rect(0,0,pageW,h,'F');
+  doc.setFillColor(73,208,90);
+  doc.rect(0,h-1.6,pageW,1.6,'F');
+
+  try{
+    const props=doc.getImageProperties(logoData);
+    const logoH=compact?10:13;
+    const ratio=props.width/props.height;
+    const logoW=Math.min(compact?38:46,logoH*ratio);
+    doc.addImage(logoData,'PNG',12,(h-logoH)/2-0.5,logoW,logoH);
+  }catch(e){
+    // Geen vervangend/fictief logo tekenen; alleen tekst als technische fallback.
+    doc.setTextColor(255,255,255);
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(compact?12:15);
+    doc.text('ZamexCards',12,h/2+2);
+  }
+
+  doc.setTextColor(255,255,255);
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(compact?9:11);
+  doc.text(compact?'Setwaarde offerte':'Offerte - complete Pokemon TCG-set',pageW-12,h/2+1,{align:'right'});
+}
+
+function addPdfFooter(doc,pageNumber,pageCount){
+  const pageW=doc.internal.pageSize.getWidth();
+  const pageH=doc.internal.pageSize.getHeight();
+  doc.setFillColor(255,138,0);
+  doc.rect(0,pageH-12,pageW,1.4,'F');
+  doc.setFillColor(4,25,48);
+  doc.rect(0,pageH-10.6,pageW,10.6,'F');
+
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(10);
+  doc.setTextColor(255,255,255);
+  doc.text('ZamexCards.nl',12,pageH-4.1);
+
+  doc.setFont('helvetica','normal');
+  doc.setFontSize(8);
+  doc.text(`Pagina ${pageNumber} van ${pageCount}`,pageW-12,pageH-4.1,{align:'right'});
+}
+
+async function generateOfferPdf(){
+  const c=calc();
+  if(pricesLoading){
+    alert('Wacht even tot alle kaartprijzen zijn geladen.');
+    return;
+  }
+  if(!selectedSet||!setDetail||!c.priced){
+    alert('Kies eerst een set waarvoor prijsgegevens beschikbaar zijn.');
+    return;
+  }
+  if(!window.jspdf?.jsPDF){
+    alert('De PDF-module kon niet worden geladen. Vernieuw de pagina en probeer opnieuw.');
+    return;
+  }
+
+  const btn=$('pdfOfferBtn');
+  const oldDisabled=btn?.disabled;
+  if(btn){
+    btn.disabled=true;
+    const sub=btn.querySelector('.offer-sub');
+    if(sub) sub.textContent='PDF wordt gemaakt...';
+  }
+
+  try{
+    const logoData=await loadLogoDataUrl();
+    const {jsPDF}=window.jspdf;
+    const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4',compress:true});
+    if(typeof doc.autoTable!=='function') throw new Error('De tabelmodule voor PDF kon niet worden geladen.');
+
+    const pageW=doc.internal.pageSize.getWidth();
+    const cond=CONDITIONS[condition]||CONDITIONS['near-mint'];
+    const setName=displayName(selectedSet);
+    const setCode=String(selectedSet.sourceId||'').toUpperCase();
+    const collectionLabel=level==='basic'?'Basic set':level==='full'?'Volledige set':'Masterset';
+    const dateText=new Date().toLocaleDateString('nl-NL',{day:'2-digit',month:'2-digit',year:'numeric'});
+    const pct=c.count?Math.round(c.priced/c.count*100):0;
+
+    addPdfBrandHeader(doc,logoData,false);
+
+    doc.setTextColor(4,25,48);
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(18);
+    doc.text('Setwaarde offerte',12,39);
+
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(13);
+    doc.text(`${setName} - ${setCode}`,12,47);
+
+    doc.setFont('helvetica','normal');
+    doc.setFontSize(9);
+    doc.setTextColor(70,86,103);
+    doc.text(`Datum: ${dateText}   |   Verzameling: ${collectionLabel}   |   Staat: ${cond.label}`,12,53);
+
+    // Marktwaarde blok
+    doc.setFillColor(235,249,238);
+    doc.setDrawColor(73,208,90);
+    doc.roundedRect(12,59,88,25,3,3,'FD');
+    doc.setTextColor(40,75,50);
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(9);
+    doc.text('WAARDE VAN DE SET',17,66);
+    doc.setTextColor(4,25,48);
+    doc.setFontSize(17);
+    doc.text(pdfMoney(c.value),17,77);
+
+    // Inkoop blok - opvallend oranje
+    doc.setFillColor(255,244,230);
+    doc.setDrawColor(255,138,0);
+    doc.roundedRect(110,59,88,25,3,3,'FD');
+    doc.setTextColor(166,79,0);
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(9);
+    doc.text('ZAMEXCARDS INKOOP - 80%',115,66);
+    doc.setTextColor(4,25,48);
+    doc.setFontSize(17);
+    doc.text(pdfMoney(c.value*0.8),115,77);
+
+    doc.setFillColor(241,246,251);
+    doc.setDrawColor(184,204,222);
+    doc.roundedRect(12,88,186,13,2,2,'FD');
+    doc.setFont('helvetica','normal');
+    doc.setFontSize(8.5);
+    doc.setTextColor(55,75,95);
+    doc.text(
+      `Prijsdekking: ${c.priced} van ${c.count} (${pct}%). Kaartwaarde is gebaseerd op Cardmarket avg. 30 dagen en gecorrigeerd voor ${cond.label}.`,
+      16,96,{maxWidth:178}
+    );
+
+    doc.setTextColor(4,25,48);
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(11);
+    doc.text('Kaarten en losse kaartwaarden',12,109);
+
+    const rows=[...c.rows]
+      .sort((a,b)=>num(a.localId)-num(b.localId)||String(a.localId).localeCompare(String(b.localId)))
+      .map(r=>{
+        const raw=r.price;
+        const adjusted=raw==null?null:raw*c.factor;
+        return [
+          String(r.localId||''),
+          String(r.name||''),
+          String(r.variant||''),
+          raw==null?'-':pdfMoney(raw),
+          adjusted==null?'-':pdfMoney(adjusted)
+        ];
+      });
+
+    doc.autoTable({
+      startY:113,
+      head:[['Nummer','Kaartnaam','Uitvoering','Avg. 30d','Kaartwaarde']],
+      body:rows,
+      margin:{top:27,left:12,right:12,bottom:18},
+      theme:'grid',
+      styles:{
+        font:'helvetica',
+        fontSize:7.7,
+        cellPadding:2.2,
+        lineColor:[205,219,232],
+        lineWidth:0.2,
+        textColor:[20,45,68],
+        valign:'middle'
+      },
+      headStyles:{
+        fillColor:[9,49,88],
+        textColor:[255,255,255],
+        fontStyle:'bold',
+        fontSize:8
+      },
+      alternateRowStyles:{fillColor:[245,249,252]},
+      columnStyles:{
+        0:{cellWidth:18},
+        1:{cellWidth:65},
+        2:{cellWidth:31},
+        3:{cellWidth:35,halign:'right'},
+        4:{cellWidth:37,halign:'right',fontStyle:'bold'}
+      },
+      didDrawPage:function(data){
+        const current=doc.internal.getCurrentPageInfo().pageNumber;
+        if(current>1) addPdfBrandHeader(doc,logoData,true);
+      }
+    });
+
+    // Korte toelichting na de tabel, indien er ruimte is; anders nieuwe pagina.
+    let y=(doc.lastAutoTable?.finalY||112)+7;
+    const pageH=doc.internal.pageSize.getHeight();
+    if(y>pageH-30){
+      doc.addPage();
+      addPdfBrandHeader(doc,logoData,true);
+      y=32;
+    }
+    doc.setFont('helvetica','normal');
+    doc.setFontSize(8);
+    doc.setTextColor(80,95,110);
+    doc.text(
+      'Deze offerte is een indicatieve waardebepaling. Het definitieve inkoopaanbod volgt na controle van compleetheid, uitvoering en conditie van de kaarten.',
+      12,y,{maxWidth:186}
+    );
+
+    const pageCount=doc.getNumberOfPages();
+    for(let p=1;p<=pageCount;p++){
+      doc.setPage(p);
+      addPdfFooter(doc,p,pageCount);
+    }
+
+    const filename=`ZamexCards-Offerte-${safeFilePart(setName)}-${setCode}-${new Date().toISOString().slice(0,10)}.pdf`;
+    doc.save(filename);
+  }catch(err){
+    console.error(err);
+    alert(err instanceof Error?err.message:'De PDF kon niet worden gemaakt.');
+  }finally{
+    if(btn){
+      btn.disabled=Boolean(oldDisabled)&&pricesLoading;
+      const sub=btn.querySelector('.offer-sub');
+      if(sub) sub.textContent=pricesLoading?'Wacht tot alle prijzen geladen zijn':'Download compleet overzicht';
+      const current=calc();
+      btn.disabled=pricesLoading||!selectedSet||!setDetail||!current.priced;
+    }
+  }
+}
+
 
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
 
@@ -422,9 +980,20 @@ document.querySelectorAll('input[name=level]').forEach(r=>r.addEventListener('ch
   updateResult();
 }));
 
+
+document.querySelectorAll('input[name=condition]').forEach(r=>r.addEventListener('change',e=>{
+  condition=e.target.value;
+  document.querySelectorAll('.condition-card').forEach(x=>x.classList.toggle('active',x.querySelector('input').checked));
+  updateResult();
+}));
+
+
+$('pdfOfferBtn').addEventListener('click',generateOfferPdf);
+
 $('toggleBreakdown').onclick=()=>{
   const show=$('tableWrap').classList.toggle('show');
-  $('toggleBreakdown').textContent=show?'Kaartprijzen verbergen':'Klik om alle kaartprijzen te bekijken';
+  $('breakdownActionText').textContent=show?'Kaartprijzen verbergen':'Bekijk alle kaarten';
+  $('breakdownArrow').classList.toggle('open',show);
 };
 
 renderLangs();
