@@ -331,8 +331,8 @@ td:last-child,th:last-child{text-align:right}
           <path d="M8 17h6"></path>
         </svg>
         <span class="offer-btn-copy">
-          <span class="offer-btn-title">Maak offerte als PDF</span>
-          <span class="offer-sub">Download compleet overzicht</span>
+          <span class="offer-btn-title">Download set prijsoverzicht</span>
+          <span class="offer-sub">Download set prijsoverzicht als PDF</span>
         </span>
       </button>
 
@@ -713,7 +713,7 @@ function updateResult(){
   if(pdfBtn){
     pdfBtn.disabled=pricesLoading||!selectedSet||!setDetail||!c.priced;
     const sub=pdfBtn.querySelector('.offer-sub');
-    if(sub) sub.textContent=pricesLoading?'Wacht tot alle prijzen geladen zijn':'Download compleet overzicht';
+    if(sub) sub.textContent=pricesLoading?'Wacht tot alle prijzen geladen zijn':'Download set prijsoverzicht als PDF';
   }
 
   const rows=[...c.rows].sort((a,b)=>num(a.localId)-num(b.localId)||String(a.localId).localeCompare(String(b.localId)));
@@ -771,7 +771,7 @@ function addPdfBrandHeader(doc,logoData,compact=false){
   doc.setTextColor(255,255,255);
   doc.setFont('helvetica','bold');
   doc.setFontSize(compact?9:11);
-  doc.text(compact?'Setwaarde offerte':'Offerte - complete Pokemon TCG-set',pageW-12,h/2+1,{align:'right'});
+  doc.text(compact?'Set prijsoverzicht':'Set prijsoverzicht - Pokemon TCG',pageW-12,h/2+1,{align:'right'});
 }
 
 function addPdfFooter(doc,pageNumber,pageCount){
@@ -812,7 +812,7 @@ async function generateOfferPdf(){
   if(btn){
     btn.disabled=true;
     const sub=btn.querySelector('.offer-sub');
-    if(sub) sub.textContent='PDF wordt gemaakt...';
+    if(sub) sub.textContent='Prijsoverzicht wordt gemaakt...';
   }
 
   try{
@@ -826,7 +826,9 @@ async function generateOfferPdf(){
     const setName=displayName(selectedSet);
     const setCode=String(selectedSet.sourceId||'').toUpperCase();
     const collectionLabel=level==='basic'?'Basic set':level==='full'?'Volledige set':'Masterset';
-    const dateText=new Date().toLocaleDateString('nl-NL',{day:'2-digit',month:'2-digit',year:'numeric'});
+    const requestDate=new Date();
+    const dateText=requestDate.toLocaleDateString('nl-NL',{day:'2-digit',month:'2-digit',year:'numeric'});
+    const timeText=requestDate.toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'});
     const pct=c.count?Math.round(c.priced/c.count*100):0;
 
     addPdfBrandHeader(doc,logoData,false);
@@ -834,7 +836,7 @@ async function generateOfferPdf(){
     doc.setTextColor(4,25,48);
     doc.setFont('helvetica','bold');
     doc.setFontSize(18);
-    doc.text('Setwaarde offerte',12,39);
+    doc.text('Set prijsoverzicht',12,39);
 
     doc.setFont('helvetica','bold');
     doc.setFontSize(13);
@@ -843,47 +845,48 @@ async function generateOfferPdf(){
     doc.setFont('helvetica','normal');
     doc.setFontSize(9);
     doc.setTextColor(70,86,103);
-    doc.text(`Datum: ${dateText}   |   Verzameling: ${collectionLabel}   |   Staat: ${cond.label}`,12,53);
+    doc.text(`Aangevraagd op: ${dateText} om ${timeText}`,12,53);
+    doc.text(`Verzameling: ${collectionLabel}   |   Staat: ${cond.label}`,12,57);
 
     // Marktwaarde blok
     doc.setFillColor(235,249,238);
     doc.setDrawColor(73,208,90);
-    doc.roundedRect(12,59,88,25,3,3,'FD');
+    doc.roundedRect(12,63,88,25,3,3,'FD');
     doc.setTextColor(40,75,50);
     doc.setFont('helvetica','bold');
     doc.setFontSize(9);
-    doc.text('WAARDE VAN DE SET',17,66);
+    doc.text('WAARDE VAN DE SET',17,70);
     doc.setTextColor(4,25,48);
     doc.setFontSize(17);
-    doc.text(pdfMoney(c.value),17,77);
+    doc.text(pdfMoney(c.value),17,81);
 
     // Inkoop blok - opvallend oranje
     doc.setFillColor(255,244,230);
     doc.setDrawColor(255,138,0);
-    doc.roundedRect(110,59,88,25,3,3,'FD');
+    doc.roundedRect(110,63,88,25,3,3,'FD');
     doc.setTextColor(166,79,0);
     doc.setFont('helvetica','bold');
     doc.setFontSize(9);
-    doc.text('ZAMEXCARDS INKOOP - 80%',115,66);
+    doc.text('ZAMEXCARDS INKOOP - 80%',115,70);
     doc.setTextColor(4,25,48);
     doc.setFontSize(17);
-    doc.text(pdfMoney(c.value*0.8),115,77);
+    doc.text(pdfMoney(c.value*0.8),115,81);
 
     doc.setFillColor(241,246,251);
     doc.setDrawColor(184,204,222);
-    doc.roundedRect(12,88,186,13,2,2,'FD');
+    doc.roundedRect(12,92,186,13,2,2,'FD');
     doc.setFont('helvetica','normal');
     doc.setFontSize(8.5);
     doc.setTextColor(55,75,95);
     doc.text(
       `Prijsdekking: ${c.priced} van ${c.count} (${pct}%). Kaartwaarde is gebaseerd op Cardmarket avg. 30 dagen en gecorrigeerd voor ${cond.label}.`,
-      16,96,{maxWidth:178}
+      16,100,{maxWidth:178}
     );
 
     doc.setTextColor(4,25,48);
     doc.setFont('helvetica','bold');
     doc.setFontSize(11);
-    doc.text('Kaarten en losse kaartwaarden',12,109);
+    doc.text('Kaarten en losse kaartwaarden',12,113);
 
     const rows=[...c.rows]
       .sort((a,b)=>num(a.localId)-num(b.localId)||String(a.localId).localeCompare(String(b.localId)))
@@ -900,7 +903,7 @@ async function generateOfferPdf(){
       });
 
     doc.autoTable({
-      startY:113,
+      startY:117,
       head:[['Nummer','Kaartnaam','Uitvoering','Avg. 30d','Kaartwaarde']],
       body:rows,
       margin:{top:27,left:12,right:12,bottom:18},
@@ -946,7 +949,7 @@ async function generateOfferPdf(){
     doc.setFontSize(8);
     doc.setTextColor(80,95,110);
     doc.text(
-      'Deze offerte is een indicatieve waardebepaling. Het definitieve inkoopaanbod volgt na controle van compleetheid, uitvoering en conditie van de kaarten.',
+      'Dit overzicht is een indicatieve waardebepaling. Het definitieve inkoopaanbod volgt na controle van compleetheid, uitvoering en conditie van de kaarten.',
       12,y,{maxWidth:186}
     );
 
@@ -956,7 +959,7 @@ async function generateOfferPdf(){
       addPdfFooter(doc,p,pageCount);
     }
 
-    const filename=`ZamexCards-Offerte-${safeFilePart(setName)}-${setCode}-${new Date().toISOString().slice(0,10)}.pdf`;
+    const filename=`ZamexCards-Setprijsoverzicht-${safeFilePart(setName)}-${setCode}-${new Date().toISOString().slice(0,10)}.pdf`;
     doc.save(filename);
   }catch(err){
     console.error(err);
@@ -965,7 +968,7 @@ async function generateOfferPdf(){
     if(btn){
       btn.disabled=Boolean(oldDisabled)&&pricesLoading;
       const sub=btn.querySelector('.offer-sub');
-      if(sub) sub.textContent=pricesLoading?'Wacht tot alle prijzen geladen zijn':'Download compleet overzicht';
+      if(sub) sub.textContent=pricesLoading?'Wacht tot alle prijzen geladen zijn':'Download set prijsoverzicht als PDF';
       const current=calc();
       btn.disabled=pricesLoading||!selectedSet||!setDetail||!current.priced;
     }
