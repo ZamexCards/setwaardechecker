@@ -1,0 +1,4 @@
+Upload index.html en .nojekyll naar de hoofdmap (root) van de GitHub repository.
+Vervang de bestaande index.html.
+GitHub Pages moet publiceren vanaf: main / (root).
+Daarna kan publicatie enkele minuten duren.
