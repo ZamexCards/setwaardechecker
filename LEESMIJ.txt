@@ -1,9 +1,11 @@
-ZAMEXCARDS SETWAARDE CALCULATOR - GITHUB PAGES
+ZamexCards Setwaarde Calculator - gerepareerde versie
 
-1. Pak deze zip uit.
-2. Upload index.html, zamexcards-logo.png, de map assets en alle overige bestanden naar de hoofdmap van je GitHub-repository.
-3. Open GitHub: Settings > Pages.
-4. Kies Deploy from a branch, main en / (root).
-5. Klik op Save.
+Upload index.html naar de hoofdmap van je GitHub repository en vervang de huidige index.html.
+Je bestaande zamexcards-logo.png kan blijven staan.
 
-Deze versie gebruikt de gewone map assets. Er is geen verborgen .nojekyll-bestand nodig.
+Aanpassing:
+- timeout op API-aanvragen
+- fallback zonder sorteerparameter
+- geen dubbele Engelse set-aanvraag
+- losse taalverzoeken blokkeren elkaar niet
+- setlijst blijft niet onbeperkt op 'Sets laden...' staan
