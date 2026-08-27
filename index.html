@@ -178,6 +178,40 @@ td:last-child,th:last-child{text-align:right}
   .condition-grid{grid-template-columns:1fr}
 }
 
+
+.offer-btn{
+  width:100%;
+  margin-top:18px;
+  border:2px solid #ffb04a;
+  border-radius:16px;
+  background:linear-gradient(135deg,#ff8a00,#f36f00);
+  color:#ffffff;
+  padding:16px 18px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:12px;
+  cursor:pointer;
+  font-weight:900;
+  box-shadow:0 10px 26px rgba(255,138,0,.28);
+  transition:transform .15s ease,filter .15s ease,box-shadow .15s ease;
+}
+.offer-btn:hover:not(:disabled){
+  transform:translateY(-2px);
+  filter:brightness(1.06);
+  box-shadow:0 14px 34px rgba(255,138,0,.38);
+}
+.offer-btn:disabled{
+  cursor:not-allowed;
+  opacity:.55;
+  filter:grayscale(.15);
+  box-shadow:none;
+}
+.offer-btn svg{width:26px;height:26px;flex:0 0 auto}
+.offer-btn-copy{display:flex;flex-direction:column;align-items:flex-start;line-height:1.15}
+.offer-btn-title{font-size:17px}
+.offer-sub{margin-top:4px;font-size:11px;font-weight:700;opacity:.9}
+
 @media(max-width:900px){
   .info-grid{grid-template-columns:1fr}
   .info-tile{min-height:auto}
@@ -185,6 +219,10 @@ td:last-child,th:last-child{text-align:right}
 
 @media(max-width:900px){.grid{grid-template-columns:1fr}.badge{display:none}.big{font-size:38px}}
 </style>
+
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js"></script>
+
 </head>
 <body>
 <header>
@@ -222,6 +260,7 @@ td:last-child,th:last-child{text-align:right}
           <label class="level"><input type="radio" name="level" value="full"><span><b>Volledige set</b><span class="muted">Alle genummerde kaarten, inclusief secret rares boven het officiële setnummer.</span></span></label>
           <label class="level"><input type="radio" name="level" value="master"><span><b>Masterset</b><span class="muted">Alle genummerde kaarten plus beschikbare normal- en holo-uitvoeringen.</span></span></label>
         </div>
+      </div>
 
       <div class="section">
         <span class="step">3</span><h2>Kies de staat van de set</h2>
@@ -283,6 +322,19 @@ td:last-child,th:last-child{text-align:right}
         <div style="font-size:12px;font-weight:700">80% van de gecorrigeerde 30-dagenwaarde</div>
       </div>
 
+      <button id="pdfOfferBtn" class="offer-btn" type="button" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <path d="M14 2v6h6"></path>
+          <path d="M8 13h8"></path>
+          <path d="M8 17h6"></path>
+        </svg>
+        <span class="offer-btn-copy">
+          <span class="offer-btn-title">Maak offerte als PDF</span>
+          <span class="offer-sub">Download compleet overzicht</span>
+        </span>
+      </button>
+
       <div class="box">
         <div style="display:flex;justify-content:space-between"><b>Prijsdekking</b><b id="coveragePct">0%</b></div>
         <div class="progress"><span id="coverageProgress"></span></div>
@@ -315,7 +367,7 @@ td:last-child,th:last-child{text-align:right}
   <div class="info-grid">
     <div class="info-tile">
       <strong>Zo werkt de ZamexCards Setwaarde Calculator</strong>
-      <span>Kies de taal, zoek de Pokémon-set en selecteer of je de basic set, volledige set of masterset wilt bekijken.</span>
+      <span>Kies de taal, zoek de Pokémon-set, selecteer basic set, volledige set of masterset en kies daarna de staat van de set.</span>
     </div>
     <div class="info-tile">
       <strong>ZamexCards marktwaarde</strong>
@@ -349,7 +401,7 @@ const CONDITIONS={
   'poor':{label:'Poor',factor:0.40}
 };
 
-let language='Engels', sets=[], filteredSets=[], selectedSet=null, setDetail=null, cards=[], level='basic', condition='near-mint';
+let language='Engels', sets=[], filteredSets=[], selectedSet=null, setDetail=null, cards=[], level='basic', condition='near-mint', pricesLoading=false;
 
 const $=id=>document.getElementById(id);
 const euro=v=>new Intl.NumberFormat('nl-NL',{style:'currency',currency:'EUR'}).format(v||0);
@@ -387,7 +439,7 @@ async function loadSets(){
   $('search').disabled=true;
   $('setSelect').disabled=true;
   $('setSelect').innerHTML='<option>Sets laden…</option>';
-  sets=[]; filteredSets=[]; selectedSet=null; setDetail=null; cards=[];
+  sets=[]; filteredSets=[]; selectedSet=null; setDetail=null; cards=[]; pricesLoading=false;
   updateResult();
 
   try{
@@ -468,6 +520,7 @@ async function chooseSet(id){
 async function loadCardPrices(){
   if(!setDetail) return;
   cards=[];
+  pricesLoading=true;
   const list=Array.isArray(setDetail.cards)?setDetail.cards:[];
   $('loadingBox').style.display='block';
   $('loadProgress').style.width='0%';
@@ -489,6 +542,7 @@ async function loadCardPrices(){
     $('loadingText').textContent=`Kaartprijzen ophalen · ${pct}%`;
     updateResult();
   }
+  pricesLoading=false;
   $('loadingBox').style.display='none';
   updateResult();
 }
@@ -539,10 +593,269 @@ function updateResult(){
   $('coverageProgress').style.width=pct+'%';
   $('coverageLine').textContent=c.priced?`${c.priced} van ${c.count} geprijsd · Gem. ${euro(c.value/c.priced)}`:'Nog geen prijzen';
   $('missingLine').textContent=c.missing?`${c.missing} uitvoeringen zonder betrouwbare Cardmarket-30-dagenprijs tellen niet mee.`:'';
+  const pdfBtn=$('pdfOfferBtn');
+  if(pdfBtn){
+    pdfBtn.disabled=pricesLoading||!selectedSet||!setDetail||!c.priced;
+    const sub=pdfBtn.querySelector('.offer-sub');
+    if(sub) sub.textContent=pricesLoading?'Wacht tot alle prijzen geladen zijn':'Download compleet overzicht';
+  }
 
   const rows=[...c.rows].sort((a,b)=>num(a.localId)-num(b.localId)||String(a.localId).localeCompare(String(b.localId)));
   $('priceRows').innerHTML=rows.map(r=>`<tr><td>${r.localId||''}</td><td>${escapeHtml(r.name||'')}</td><td>${r.variant||''}</td><td>${r.price==null?'Niet beschikbaar':euro(r.price)}</td></tr>`).join('');
 }
+
+
+function pdfMoney(v){
+  return 'EUR ' + Number(v||0).toLocaleString('nl-NL',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+
+function safeFilePart(s){
+  return String(s||'set')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-zA-Z0-9_-]+/g,'-')
+    .replace(/-+/g,'-')
+    .replace(/^-|-$/g,'')
+    .slice(0,70) || 'set';
+}
+
+async function loadLogoDataUrl(){
+  const response=await fetch('./zamexcards-logo.png?v=6',{cache:'no-store'});
+  if(!response.ok) throw new Error('ZamexCards logo kon niet worden geladen.');
+  const blob=await response.blob();
+  return await new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onload=()=>resolve(reader.result);
+    reader.onerror=()=>reject(new Error('ZamexCards logo kon niet worden gelezen.'));
+    reader.readAsDataURL(blob);
+  });
+}
+
+function addPdfBrandHeader(doc,logoData,compact=false){
+  const pageW=doc.internal.pageSize.getWidth();
+  const h=compact?21:28;
+  doc.setFillColor(4,25,48);
+  doc.rect(0,0,pageW,h,'F');
+  doc.setFillColor(73,208,90);
+  doc.rect(0,h-1.6,pageW,1.6,'F');
+
+  try{
+    const props=doc.getImageProperties(logoData);
+    const logoH=compact?10:13;
+    const ratio=props.width/props.height;
+    const logoW=Math.min(compact?38:46,logoH*ratio);
+    doc.addImage(logoData,'PNG',12,(h-logoH)/2-0.5,logoW,logoH);
+  }catch(e){
+    // Geen vervangend/fictief logo tekenen; alleen tekst als technische fallback.
+    doc.setTextColor(255,255,255);
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(compact?12:15);
+    doc.text('ZamexCards',12,h/2+2);
+  }
+
+  doc.setTextColor(255,255,255);
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(compact?9:11);
+  doc.text(compact?'Setwaarde offerte':'Offerte - complete Pokemon TCG-set',pageW-12,h/2+1,{align:'right'});
+}
+
+function addPdfFooter(doc,pageNumber,pageCount){
+  const pageW=doc.internal.pageSize.getWidth();
+  const pageH=doc.internal.pageSize.getHeight();
+  doc.setFillColor(255,138,0);
+  doc.rect(0,pageH-12,pageW,1.4,'F');
+  doc.setFillColor(4,25,48);
+  doc.rect(0,pageH-10.6,pageW,10.6,'F');
+
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(10);
+  doc.setTextColor(255,255,255);
+  doc.text('ZamexCards.nl',12,pageH-4.1);
+
+  doc.setFont('helvetica','normal');
+  doc.setFontSize(8);
+  doc.text(`Pagina ${pageNumber} van ${pageCount}`,pageW-12,pageH-4.1,{align:'right'});
+}
+
+async function generateOfferPdf(){
+  const c=calc();
+  if(pricesLoading){
+    alert('Wacht even tot alle kaartprijzen zijn geladen.');
+    return;
+  }
+  if(!selectedSet||!setDetail||!c.priced){
+    alert('Kies eerst een set waarvoor prijsgegevens beschikbaar zijn.');
+    return;
+  }
+  if(!window.jspdf?.jsPDF){
+    alert('De PDF-module kon niet worden geladen. Vernieuw de pagina en probeer opnieuw.');
+    return;
+  }
+
+  const btn=$('pdfOfferBtn');
+  const oldDisabled=btn?.disabled;
+  if(btn){
+    btn.disabled=true;
+    const sub=btn.querySelector('.offer-sub');
+    if(sub) sub.textContent='PDF wordt gemaakt...';
+  }
+
+  try{
+    const logoData=await loadLogoDataUrl();
+    const {jsPDF}=window.jspdf;
+    const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4',compress:true});
+    if(typeof doc.autoTable!=='function') throw new Error('De tabelmodule voor PDF kon niet worden geladen.');
+
+    const pageW=doc.internal.pageSize.getWidth();
+    const cond=CONDITIONS[condition]||CONDITIONS['near-mint'];
+    const setName=displayName(selectedSet);
+    const setCode=String(selectedSet.sourceId||'').toUpperCase();
+    const collectionLabel=level==='basic'?'Basic set':level==='full'?'Volledige set':'Masterset';
+    const dateText=new Date().toLocaleDateString('nl-NL',{day:'2-digit',month:'2-digit',year:'numeric'});
+    const pct=c.count?Math.round(c.priced/c.count*100):0;
+
+    addPdfBrandHeader(doc,logoData,false);
+
+    doc.setTextColor(4,25,48);
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(18);
+    doc.text('Setwaarde offerte',12,39);
+
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(13);
+    doc.text(`${setName} - ${setCode}`,12,47);
+
+    doc.setFont('helvetica','normal');
+    doc.setFontSize(9);
+    doc.setTextColor(70,86,103);
+    doc.text(`Datum: ${dateText}   |   Verzameling: ${collectionLabel}   |   Staat: ${cond.label}`,12,53);
+
+    // Marktwaarde blok
+    doc.setFillColor(235,249,238);
+    doc.setDrawColor(73,208,90);
+    doc.roundedRect(12,59,88,25,3,3,'FD');
+    doc.setTextColor(40,75,50);
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(9);
+    doc.text('WAARDE VAN DE SET',17,66);
+    doc.setTextColor(4,25,48);
+    doc.setFontSize(17);
+    doc.text(pdfMoney(c.value),17,77);
+
+    // Inkoop blok - opvallend oranje
+    doc.setFillColor(255,244,230);
+    doc.setDrawColor(255,138,0);
+    doc.roundedRect(110,59,88,25,3,3,'FD');
+    doc.setTextColor(166,79,0);
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(9);
+    doc.text('ZAMEXCARDS INKOOP - 80%',115,66);
+    doc.setTextColor(4,25,48);
+    doc.setFontSize(17);
+    doc.text(pdfMoney(c.value*0.8),115,77);
+
+    doc.setFillColor(241,246,251);
+    doc.setDrawColor(184,204,222);
+    doc.roundedRect(12,88,186,13,2,2,'FD');
+    doc.setFont('helvetica','normal');
+    doc.setFontSize(8.5);
+    doc.setTextColor(55,75,95);
+    doc.text(
+      `Prijsdekking: ${c.priced} van ${c.count} (${pct}%). Kaartwaarde is gebaseerd op Cardmarket avg. 30 dagen en gecorrigeerd voor ${cond.label}.`,
+      16,96,{maxWidth:178}
+    );
+
+    doc.setTextColor(4,25,48);
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(11);
+    doc.text('Kaarten en losse kaartwaarden',12,109);
+
+    const rows=[...c.rows]
+      .sort((a,b)=>num(a.localId)-num(b.localId)||String(a.localId).localeCompare(String(b.localId)))
+      .map(r=>{
+        const raw=r.price;
+        const adjusted=raw==null?null:raw*c.factor;
+        return [
+          String(r.localId||''),
+          String(r.name||''),
+          String(r.variant||''),
+          raw==null?'-':pdfMoney(raw),
+          adjusted==null?'-':pdfMoney(adjusted)
+        ];
+      });
+
+    doc.autoTable({
+      startY:113,
+      head:[['Nummer','Kaartnaam','Uitvoering','Avg. 30d','Kaartwaarde']],
+      body:rows,
+      margin:{top:27,left:12,right:12,bottom:18},
+      theme:'grid',
+      styles:{
+        font:'helvetica',
+        fontSize:7.7,
+        cellPadding:2.2,
+        lineColor:[205,219,232],
+        lineWidth:0.2,
+        textColor:[20,45,68],
+        valign:'middle'
+      },
+      headStyles:{
+        fillColor:[9,49,88],
+        textColor:[255,255,255],
+        fontStyle:'bold',
+        fontSize:8
+      },
+      alternateRowStyles:{fillColor:[245,249,252]},
+      columnStyles:{
+        0:{cellWidth:18},
+        1:{cellWidth:65},
+        2:{cellWidth:31},
+        3:{cellWidth:35,halign:'right'},
+        4:{cellWidth:37,halign:'right',fontStyle:'bold'}
+      },
+      didDrawPage:function(data){
+        const current=doc.internal.getCurrentPageInfo().pageNumber;
+        if(current>1) addPdfBrandHeader(doc,logoData,true);
+      }
+    });
+
+    // Korte toelichting na de tabel, indien er ruimte is; anders nieuwe pagina.
+    let y=(doc.lastAutoTable?.finalY||112)+7;
+    const pageH=doc.internal.pageSize.getHeight();
+    if(y>pageH-30){
+      doc.addPage();
+      addPdfBrandHeader(doc,logoData,true);
+      y=32;
+    }
+    doc.setFont('helvetica','normal');
+    doc.setFontSize(8);
+    doc.setTextColor(80,95,110);
+    doc.text(
+      'Deze offerte is een indicatieve waardebepaling. Het definitieve inkoopaanbod volgt na controle van compleetheid, uitvoering en conditie van de kaarten.',
+      12,y,{maxWidth:186}
+    );
+
+    const pageCount=doc.getNumberOfPages();
+    for(let p=1;p<=pageCount;p++){
+      doc.setPage(p);
+      addPdfFooter(doc,p,pageCount);
+    }
+
+    const filename=`ZamexCards-Offerte-${safeFilePart(setName)}-${setCode}-${new Date().toISOString().slice(0,10)}.pdf`;
+    doc.save(filename);
+  }catch(err){
+    console.error(err);
+    alert(err instanceof Error?err.message:'De PDF kon niet worden gemaakt.');
+  }finally{
+    if(btn){
+      btn.disabled=Boolean(oldDisabled)&&pricesLoading;
+      const sub=btn.querySelector('.offer-sub');
+      if(sub) sub.textContent=pricesLoading?'Wacht tot alle prijzen geladen zijn':'Download compleet overzicht';
+      const current=calc();
+      btn.disabled=pricesLoading||!selectedSet||!setDetail||!current.priced;
+    }
+  }
+}
+
 
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
 
@@ -558,6 +871,9 @@ document.querySelectorAll('input[name=condition]').forEach(r=>r.addEventListener
   document.querySelectorAll('.condition-card').forEach(x=>x.classList.toggle('active',x.querySelector('input').checked));
   updateResult();
 }));
+
+
+$('pdfOfferBtn').addEventListener('click',generateOfferPdf);
 
 $('toggleBreakdown').onclick=()=>{
   const show=$('tableWrap').classList.toggle('show');
