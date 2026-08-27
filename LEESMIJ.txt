@@ -1,0 +1,9 @@
+ZAMEXCARDS SETWAARDE CALCULATOR - GITHUB PAGES
+
+1. Pak deze zip uit.
+2. Upload index.html, zamexcards-logo.png, de map assets en alle overige bestanden naar de hoofdmap van je GitHub-repository.
+3. Open GitHub: Settings > Pages.
+4. Kies Deploy from a branch, main en / (root).
+5. Klik op Save.
+
+Deze versie gebruikt de gewone map assets. Er is geen verborgen .nojekyll-bestand nodig.
