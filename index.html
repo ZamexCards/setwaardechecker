@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>ZamexCards Setwaarde Calculator</title>
 <meta name="description" content="Bereken de 30-dagenwaarde en 80% inkoopwaarde van complete Pokémon TCG-sets.">
-<meta name="zc-build" content="2026-08-27-all-features-v2">
+<meta name="zc-build" content="2026-08-27-promos-v1">
 <style>
 :root{
   --bg:#041930; --panel:#093158; --panel2:#082e52; --green:#49d05a;
@@ -213,6 +213,20 @@ td:last-child,th:last-child{text-align:right}
 .offer-btn-title{font-size:17px}
 .offer-sub{margin-top:4px;font-size:11px;font-weight:700;opacity:.9}
 
+
+.promo-pill{
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  padding:3px 7px;
+  border-radius:999px;
+  background:rgba(255,138,0,.16);
+  border:1px solid rgba(255,138,0,.65);
+  color:#ffb04a;
+  font-size:11px;
+  font-weight:900;
+}
+
 @media(max-width:900px){
   .info-grid{grid-template-columns:1fr}
   .info-tile{min-height:auto}
@@ -258,8 +272,8 @@ td:last-child,th:last-child{text-align:right}
         <span class="step">2</span><h2>Kies de soort verzameling</h2>
         <div class="levels">
           <label class="level active"><input type="radio" name="level" value="basic" checked><span><b>Basic set</b><span class="muted">Eén kaart van ieder officieel nummer, tot en met het gedrukte setnummer.</span></span></label>
-          <label class="level"><input type="radio" name="level" value="full"><span><b>Volledige set</b><span class="muted">Alle genummerde kaarten, inclusief secret rares boven het officiële setnummer.</span></span></label>
-          <label class="level"><input type="radio" name="level" value="master"><span><b>Masterset</b><span class="muted">Alle genummerde kaarten plus beschikbare normal- en holo-uitvoeringen.</span></span></label>
+          <label class="level"><input type="radio" name="level" value="full"><span><b>Volledige set</b><span class="muted">Alle genummerde kaarten, inclusief secret rares én promo-uitvoeringen die aan deze set gekoppeld zijn.</span></span></label>
+          <label class="level"><input type="radio" name="level" value="master"><span><b>Masterset</b><span class="muted">Alle genummerde kaarten, beschikbare normal- en holo-uitvoeringen én gekoppelde promo-uitvoeringen.</span></span></label>
         </div>
       </div>
 
@@ -368,7 +382,7 @@ td:last-child,th:last-child{text-align:right}
   <div class="info-grid">
     <div class="info-tile">
       <strong>Zo werkt de ZamexCards Setwaarde Calculator</strong>
-      <span>Kies de taal, zoek de Pokémon-set, selecteer basic set, volledige set of masterset en kies daarna de staat van de set.</span>
+      <span>Kies de taal, zoek de Pokémon-set, selecteer basic set, volledige set of masterset en kies daarna de staat. Bij Volledige set en Masterset worden gekoppelde promo-uitvoeringen automatisch meegenomen.</span>
     </div>
     <div class="info-tile">
       <strong>ZamexCards marktwaarde</strong>
@@ -380,7 +394,7 @@ td:last-child,th:last-child{text-align:right}
     </div>
   </div>
 
-  <p class="footertext">Deze berekening telt losse kaartprijzen op. Complete sets die in één koop worden aangeboden kunnen door bundelkorting, conditie, reverse-holo’s, stempels en promo’s anders geprijsd zijn.</p>
+  <p class="footertext">Deze berekening telt losse kaartprijzen op. Complete sets die in één koop worden aangeboden kunnen door bundelkorting, conditie en specifieke promo- of stempeluitvoeringen anders geprijsd zijn.</p>
 </main>
 
 <script>
@@ -482,6 +496,71 @@ const CONDITIONS={
   'played':{label:'Played',factor:0.60},
   'poor':{label:'Poor',factor:0.40}
 };
+
+
+const PROMO_STAMPS=new Set([
+  'w-promo','pre-release','pokemon-center','set-logo','staff',
+  'gamestop','eb-games','best-buy','target','walmart',
+  'pokemon-day','25th-celebration'
+]);
+
+function humanStamp(stamp){
+  const names={
+    'w-promo':'W Promo',
+    'pre-release':'Pre-release',
+    'pokemon-center':'Pokémon Center',
+    'set-logo':'Set logo',
+    'staff':'Staff',
+    'gamestop':'GameStop',
+    'eb-games':'EB Games',
+    'best-buy':'Best Buy',
+    'target':'Target',
+    'walmart':'Walmart',
+    'pokemon-day':'Pokémon Day',
+    '25th-celebration':'25th Celebration'
+  };
+  return names[stamp]||String(stamp||'Promo')
+    .split('-').map(x=>x?x[0].toUpperCase()+x.slice(1):x).join(' ');
+}
+
+function promoVariantsForCard(card){
+  const found=[];
+  const detailed=Array.isArray(card?.variantsDetailed)?card.variantsDetailed:[];
+  for(const v of detailed){
+    if(v?.size && v.size!=='standard') continue;
+    const stamps=Array.isArray(v?.stamp)?v.stamp:[];
+    const promoStamps=stamps.filter(s=>PROMO_STAMPS.has(String(s).toLowerCase()));
+    if(!promoStamps.length) continue;
+    const label=promoStamps.map(humanStamp).join(' + ');
+    found.push({
+      key:`${v.type||'normal'}|${label}`,
+      type:v.type||'normal',
+      label
+    });
+  }
+
+  // Fallback voor de oudere TCGdex variantvelden.
+  if(card?.variants?.wPromo && !found.some(v=>v.label==='W Promo')){
+    found.push({key:'normal|W Promo',type:'normal',label:'W Promo'});
+  }
+  if(card?.variants?.preRelease && !found.some(v=>v.label==='Pre-release')){
+    found.push({key:'holo|Pre-release',type:'holo',label:'Pre-release'});
+  }
+
+  const seen=new Set();
+  return found.filter(v=>{
+    if(seen.has(v.key)) return false;
+    seen.add(v.key);
+    return true;
+  });
+}
+
+function promoPriceForCard(card,promo){
+  // Cardmarket levert momenteel standaard- en holo-30d prijzen per kaart.
+  // Voor een gekoppelde promo-print gebruiken we de prijs van dezelfde finish als indicatieve basis.
+  if(promo?.type==='holo') return card?.holo ?? card?.normal ?? null;
+  return card?.normal ?? card?.holo ?? null;
+}
 
 let language='Engels', sets=[], filteredSets=[], selectedSet=null, setDetail=null, cards=[], level='basic', condition='near-mint', pricesLoading=false;
 
@@ -650,7 +729,16 @@ async function loadCardPrices(){
       const p=d?.pricing?.cardmarket||{};
       const normal=Number.isFinite(p.avg30)?p.avg30:null;
       const holo=Number.isFinite(p['avg30-holo'])?p['avg30-holo']:null;
-      return {id:c.id,localId:c.localId,name:d?.name||c.name,normal,holo,updated:p.updated};
+      return {
+        id:c.id,
+        localId:c.localId,
+        name:d?.name||c.name,
+        normal,
+        holo,
+        variants:d?.variants||{},
+        variantsDetailed:Array.isArray(d?.variants_detailed)?d.variants_detailed:[],
+        updated:p.updated
+      };
     }));
     out.forEach(r=>{if(r.status==='fulfilled')cards.push(r.value)});
     const pct=Math.round(Math.min(i+batch.length,list.length)/Math.max(list.length,1)*100);
@@ -670,28 +758,72 @@ function activeCards(){
 }
 
 function calc(){
-  if(!setDetail)return {value:0,priced:0,count:0,missing:0,rows:[]};
+  if(!setDetail)return {value:0,priced:0,count:0,missing:0,rows:[],promoCount:0};
   const chosen=activeCards();
-  let value=0,priced=0,count=0,rows=[];
+  let value=0,priced=0,count=0,rows=[],promoCount=0;
+
+  const addRow=(c,variant,price,isPromo=false)=>{
+    count++;
+    if(price!=null&&price>0){
+      value+=price;
+      priced++;
+    }
+    if(isPromo) promoCount++;
+    rows.push({...c,variant,price,isPromo});
+  };
+
   for(const c of chosen){
     if(level==='master'){
       let had=false;
-      if(c.normal!=null&&c.normal>0){value+=c.normal;priced++;count++;had=true;rows.push({...c,variant:'Normal',price:c.normal})}
-      if(c.holo!=null&&c.holo>0){value+=c.holo;priced++;count++;had=true;rows.push({...c,variant:'Holo',price:c.holo})}
-      if(!had){count++;rows.push({...c,variant:'Prijs ontbreekt',price:null})}
+      if(c.normal!=null&&c.normal>0){
+        addRow(c,'Normal',c.normal,false);
+        had=true;
+      }
+      if(c.holo!=null&&c.holo>0){
+        addRow(c,'Holo',c.holo,false);
+        had=true;
+      }
+      if(!had) addRow(c,'Prijs ontbreekt',null,false);
+
+      for(const promo of promoVariantsForCard(c)){
+        addRow(c,`Promo · ${promo.label}`,promoPriceForCard(c,promo),true);
+      }
     }else{
-      count++;
       const price=c.holo??c.normal;
-      if(price!=null&&price>0){value+=price;priced++}
-      rows.push({...c,variant:c.holo!=null?'Holo':'Normal',price});
+      addRow(c,c.holo!=null?'Holo':'Normal',price,false);
+
+      // Een complete set bevat ook de set-gekoppelde promo-uitvoeringen.
+      if(level==='full'){
+        for(const promo of promoVariantsForCard(c)){
+          addRow(c,`Promo · ${promo.label}`,promoPriceForCard(c,promo),true);
+        }
+      }
     }
   }
+
   const official=setDetail.cardCount?.official||0;
   const total=setDetail.cardCount?.total||setDetail.cards?.length||0;
-  const expected=level==='basic'?official:level==='full'?total:count;
-  count=Math.max(count,expected||0);
+
+  // Alleen de basic set heeft een vast minimum op basis van het officiële setnummer.
+  // Full/master tellen de werkelijk gevonden kaart- en promo-uitvoeringen.
+  if(level==='basic'){
+    count=Math.max(count,official||0);
+  }else if(level==='full'){
+    const baseRows=chosen.length;
+    count=Math.max(count,total + promoCount,baseRows + promoCount);
+  }
+
   const factor=CONDITIONS[condition]?.factor||1;
-  return {value:value*factor,rawValue:value,factor,priced,count,missing:Math.max(count-priced,0),rows};
+  return {
+    value:value*factor,
+    rawValue:value,
+    factor,
+    priced,
+    count,
+    missing:Math.max(count-priced,0),
+    rows,
+    promoCount
+  };
 }
 
 function updateResult(){
@@ -707,7 +839,9 @@ function updateResult(){
   const pct=c.count?Math.round(c.priced/c.count*100):0;
   $('coveragePct').textContent=pct+'%';
   $('coverageProgress').style.width=pct+'%';
-  $('coverageLine').textContent=c.priced?`${c.priced} van ${c.count} geprijsd · Gem. ${euro(c.value/c.priced)}`:'Nog geen prijzen';
+  $('coverageLine').textContent=c.priced
+    ?`${c.priced} van ${c.count} geprijsd · Gem. ${euro(c.value/c.priced)}${c.promoCount?` · ${c.promoCount} promo-uitvoering${c.promoCount===1?'':'en'}`:''}`
+    :'Nog geen prijzen';
   $('missingLine').textContent=c.missing?`${c.missing} uitvoeringen zonder betrouwbare Cardmarket-30-dagenprijs tellen niet mee.`:'';
   const pdfBtn=$('pdfOfferBtn');
   if(pdfBtn){
@@ -717,7 +851,12 @@ function updateResult(){
   }
 
   const rows=[...c.rows].sort((a,b)=>num(a.localId)-num(b.localId)||String(a.localId).localeCompare(String(b.localId)));
-  $('priceRows').innerHTML=rows.map(r=>`<tr><td>${r.localId||''}</td><td>${escapeHtml(r.name||'')}</td><td>${r.variant||''}</td><td>${r.price==null?'Niet beschikbaar':euro(r.price)}</td></tr>`).join('');
+  $('priceRows').innerHTML=rows.map(r=>`<tr>
+    <td>${r.localId||''}</td>
+    <td>${escapeHtml(r.name||'')}</td>
+    <td>${r.isPromo?`<span class="promo-pill">${escapeHtml(r.variant||'Promo')}</span>`:(r.variant||'')}</td>
+    <td>${r.price==null?'Niet beschikbaar':euro(r.price)}</td>
+  </tr>`).join('');
 }
 
 
@@ -879,7 +1018,7 @@ async function generateOfferPdf(){
     doc.setFontSize(8.5);
     doc.setTextColor(55,75,95);
     doc.text(
-      `Prijsdekking: ${c.priced} van ${c.count} (${pct}%). Kaartwaarde is gebaseerd op Cardmarket avg. 30 dagen en gecorrigeerd voor ${cond.label}.`,
+      `Prijsdekking: ${c.priced} van ${c.count} (${pct}%).${c.promoCount?` Inclusief ${c.promoCount} gekoppelde promo-uitvoering${c.promoCount===1?'':'en'}.`:''} Kaartwaarde is gebaseerd op Cardmarket avg. 30 dagen en gecorrigeerd voor ${cond.label}.`,
       16,100,{maxWidth:178}
     );
 

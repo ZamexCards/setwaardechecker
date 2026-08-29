@@ -1,4 +1,3 @@
 Upload index.html en .nojekyll naar de hoofdmap van de GitHub repository.
-Vervang de bestaande index.html.
-De oranje knop heet nu 'Download set prijsoverzicht'.
-De PDF toont bovenaan datum en tijd van aanvraag.
+Deze versie voegt set-gekoppelde promo-uitvoeringen toe aan Volledige set en Masterset.
+Promo-uitvoeringen worden ook getoond in de kaartenlijst en in het PDF-prijsoverzicht.
