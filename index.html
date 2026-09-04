@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>ZamexCards Setwaarde Calculator</title>
 <meta name="description" content="Bereken de 30-dagenwaarde en 80% inkoopwaarde van complete Pokémon TCG-sets.">
-<meta name="zc-build" content="2026-09-04-pdf-promos-bottom-v1">
+<meta name="zc-build" content="2026-09-04-all-promos-bottom-v2">
 <style>
 :root{
   --bg:#041930; --panel:#093158; --panel2:#082e52; --green:#49d05a;
@@ -305,7 +305,7 @@ td:last-child,th:last-child{text-align:right}
   margin-bottom:10px;
 }
 .related-promos-title{
-  font-size:15px;
+  font-size:17px;
   font-weight:900;
   color:#fff;
 }
@@ -522,14 +522,14 @@ td:last-child,th:last-child{text-align:right}
       <div class="related-promos" id="relatedPromos">
         <div class="related-promos-head">
           <div>
-            <div class="related-promos-title">Promo kaarten bij deze set</div>
+            <div class="related-promos-title">Alle promo kaarten van deze set</div>
             <div class="related-promos-sub" id="relatedPromosSub"></div>
           </div>
           <div class="related-promos-count" id="relatedPromosCount"></div>
         </div>
         <div class="related-promo-list" id="relatedPromoList"></div>
         <div class="related-promos-note">
-          Bij Volledige set en Masterset tellen de aangevinkte promo kaarten mee. Mis je een promo, dan kun je hem hier uitvinken.
+          Hier staan alle promo-uitvoeringen apart van de normale kaarten. Bij Volledige set en Masterset tellen de aangevinkte promo kaarten mee. Mis je een promo, dan kun je hem hier uitvinken.
         </div>
       </div>
     </div>
@@ -539,7 +539,7 @@ td:last-child,th:last-child{text-align:right}
   <div class="info-grid">
     <div class="info-tile">
       <strong>Zo werkt de ZamexCards Setwaarde Calculator</strong>
-      <span>Kies de taal, set, soort verzameling en conditie. Bij ondersteunde sets zie je ook welke promo kaarten bij de set horen. Ontbrekende kaarten en promo’s kun je uitvinken; die tellen dan niet mee.</span>
+      <span>Kies de taal, set, soort verzameling en conditie. Alle normale kaarten staan eerst bij elkaar. Alle herkende promo kaarten en promo-uitvoeringen staan apart onderaan de lijst. Ontbrekende kaarten en promo’s kun je uitvinken; die tellen dan niet mee.</span>
     </div>
     <div class="info-tile">
       <strong>ZamexCards marktwaarde</strong>
@@ -721,39 +721,77 @@ function externalPromoRow(p){
   };
 }
 
-function renderRelatedPromos(){
+function renderRelatedPromos(calcResult=null){
   const box=$('relatedPromos');
   const list=$('relatedPromoList');
-  if(!box||!list) return;
+  const count=$('relatedPromosCount');
+  const sub=$('relatedPromosSub');
+  if(!box||!list||!count) return;
 
-  if(!relatedPromos.length){
+  const c=calcResult||calc();
+
+  // Alle promo's uit de huidige waardelijst:
+  // - set-stamped / pre-release / Pokémon Center / staff / W-promo etc.
+  // - Black Star Promo's die apart aan de set gekoppeld zijn.
+  const promoRows=[...(c.rows||[])]
+    .filter(r=>r.isPromo)
+    .sort((a,b)=>{
+      const an=String(a.localId||'');
+      const bn=String(b.localId||'');
+      return num(an)-num(bn) || an.localeCompare(bn) || String(a.name||'').localeCompare(String(b.name||''));
+    });
+
+  // Voor Basic set staan promo's niet in de berekening, maar laat de bekende
+  // set-gerelateerde Black Star Promo's wel zien als informatie.
+  if(level==='basic' && relatedPromos.length){
+    for(const p of relatedPromos){
+      const r=externalPromoRow(p);
+      const key=rowSelectionKey(r);
+      if(!promoRows.some(x=>rowSelectionKey(x)===key)){
+        promoRows.push({...r,selectionKey:key,included:!excludedRows.has(key)});
+      }
+    }
+  }
+
+  if(!promoRows.length){
     box.classList.remove('show');
     list.innerHTML='';
+    count.textContent="0 promo's";
+    if(sub) sub.textContent='Voor deze set zijn momenteel geen gekoppelde promo-uitvoeringen gevonden.';
     return;
   }
 
   box.classList.add('show');
-  $('relatedPromosSub').textContent=
-    `${relatedPromos.length} officiële Black Star Promo kaarten die bij producten van ${displayName(selectedSet)} zijn uitgebracht.`;
+
+  if(sub){
+    sub.textContent=`${promoRows.length} promo-uitvoering${promoRows.length===1?'':'en'} apart weergegeven, buiten de normale kaartenlijst.`;
+  }
 
   const factor=CONDITIONS[condition]?.factor||1;
   let included=0;
 
-  list.innerHTML=relatedPromos.map(p=>{
-    const row=externalPromoRow(p);
-    const key=rowSelectionKey(row);
-    const checked=!excludedRows.has(key);
+  list.innerHTML=promoRows.map(r=>{
+    const key=r.selectionKey||rowSelectionKey(r);
+    const checked=r.included!==false && !excludedRows.has(key);
     if(checked) included++;
+
+    let source='';
+    if(r.isExternalPromo && r.source){
+      source=r.source;
+    }else{
+      source=r.variant||'Promo';
+    }
+
     return `<label class="related-promo-item ${checked?'':'off'}">
       <input class="related-promo-check" type="checkbox" data-key="${escapeHtml(key)}" ${checked?'checked':''}>
-      <span class="related-promo-number">${escapeHtml(p.number)}</span>
-      <span class="related-promo-name">${escapeHtml(p.name)}</span>
-      <span class="related-promo-source">${escapeHtml(p.source)}</span>
-      <span class="related-promo-price">${p.price==null?'Prijs n.b.':euro(p.price*factor)}</span>
+      <span class="related-promo-number">${escapeHtml(String(r.localId||''))}</span>
+      <span class="related-promo-name">${escapeHtml(r.name||'')}</span>
+      <span class="related-promo-source">${escapeHtml(source)}</span>
+      <span class="related-promo-price">${r.price==null?'Prijs n.b.':euro(r.price*factor)}</span>
     </label>`;
   }).join('');
 
-  $('relatedPromosCount').textContent=`${included} van ${relatedPromos.length} promo's meegenomen`;
+  count.textContent=`${included} van ${promoRows.length} promo's meegenomen`;
 }
 
 const PROMO_STAMPS=new Set([
@@ -1131,7 +1169,9 @@ function updateResult(){
     if(sub) sub.textContent=pricesLoading?'Wacht tot alle prijzen geladen zijn':'Download set prijsoverzicht als PDF';
   }
 
-  const rows=[...c.rows].sort((a,b)=>num(a.localId)-num(b.localId)||String(a.localId).localeCompare(String(b.localId)));
+  const rows=[...c.rows]
+    .filter(r=>!r.isPromo)
+    .sort((a,b)=>num(a.localId)-num(b.localId)||String(a.localId).localeCompare(String(b.localId)));
   $('priceRows').innerHTML=rows.map(r=>`<tr class="${r.included?'':'card-row-excluded'}">
     <td class="select-col"><input class="card-check" type="checkbox" data-key="${escapeHtml(r.selectionKey)}" ${r.included?'checked':''} aria-label="${r.included?'Meenemen':'Niet meenemen'}: ${escapeHtml(r.name||'kaart')}"></td>
     <td>${r.localId||''}</td>
@@ -1151,7 +1191,7 @@ function updateResult(){
       ?`${c.count} van ${c.allCount} kaart${c.allCount===1?'':'en'} meegenomen${c.excludedCount?` · ${c.excludedCount} uitgevinkt`:''}`
       :'Nog geen kaarten geladen';
   }
-  renderRelatedPromos();
+  renderRelatedPromos(c);
 }
 
 
@@ -1409,7 +1449,7 @@ async function generateOfferPdf(){
       doc.setTextColor(4,25,48);
       doc.setFont('helvetica','bold');
       doc.setFontSize(11);
-      doc.text('Promo kaarten bij deze set',12,promoStartY);
+      doc.text('Alle promo kaarten van deze set',12,promoStartY);
       doc.autoTable({
         ...sharedTableOptions,
         startY:promoStartY+4,
