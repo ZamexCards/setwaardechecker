@@ -1,4 +1,2 @@
 Upload index.html en .nojekyll naar de hoofdmap van de GitHub repository.
-Nieuw: apart blok 'Promo kaarten bij deze set' in Bekijk alle kaarten.
-Voor Scarlet & Violet—151 worden SVP 046 t/m SVP 053 getoond.
-Bij Volledige set en Masterset tellen aangevinkte promo's mee in de waarde en PDF.
+De promo kaarten staan nu helemaal onderaan de kaartenlijst, na alle normale kaarten.

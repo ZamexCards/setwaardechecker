@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>ZamexCards Setwaarde Calculator</title>
 <meta name="description" content="Bereken de 30-dagenwaarde en 80% inkoopwaarde van complete Pokémon TCG-sets.">
-<meta name="zc-build" content="2026-09-04-promo-list-v1">
+<meta name="zc-build" content="2026-09-04-promo-bottom-v1">
 <style>
 :root{
   --bg:#041930; --panel:#093158; --panel2:#082e52; --green:#49d05a;
@@ -290,6 +290,7 @@ td:last-child,th:last-child{text-align:right}
 
 
 .related-promos{
+  margin-top:0;
   display:none;
   padding:14px;
   background:#082e52;
@@ -512,6 +513,12 @@ td:last-child,th:last-child{text-align:right}
       </div>
       <div class="selection-help">Alle kaarten staan standaard aangevinkt. Mis je een kaart? Vink deze uit en de waarde wordt direct opnieuw berekend.</div>
 
+      
+      <table>
+        <thead><tr><th class="select-col">✓</th><th>Nummer</th><th>Kaartnaam</th><th>Uitvoering</th><th>Avg. 30 dagen</th></tr></thead>
+        <tbody id="priceRows"></tbody>
+      </table>
+
       <div class="related-promos" id="relatedPromos">
         <div class="related-promos-head">
           <div>
@@ -525,10 +532,6 @@ td:last-child,th:last-child{text-align:right}
           Bij Volledige set en Masterset tellen de aangevinkte promo kaarten mee. Mis je een promo, dan kun je hem hier uitvinken.
         </div>
       </div>
-      <table>
-        <thead><tr><th class="select-col">✓</th><th>Nummer</th><th>Kaartnaam</th><th>Uitvoering</th><th>Avg. 30 dagen</th></tr></thead>
-        <tbody id="priceRows"></tbody>
-      </table>
     </div>
   </div>
 
