@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>ZamexCards Setwaarde Calculator</title>
 <meta name="description" content="Bereken de 30-dagenwaarde en 80% inkoopwaarde van complete Pokémon TCG-sets.">
-<meta name="zc-build" content="2026-09-04-card-selection-v1">
+<meta name="zc-build" content="2026-09-04-promo-list-v1">
 <style>
 :root{
   --bg:#041930; --panel:#093158; --panel2:#082e52; --green:#49d05a;
@@ -288,6 +288,77 @@ td:last-child,th:last-child{text-align:right}
   .selection-count{text-align:left}
 }
 
+
+.related-promos{
+  display:none;
+  padding:14px;
+  background:#082e52;
+  border-bottom:1px solid #1d506f;
+}
+.related-promos.show{display:block}
+.related-promos-head{
+  display:flex;
+  justify-content:space-between;
+  gap:14px;
+  align-items:flex-start;
+  margin-bottom:10px;
+}
+.related-promos-title{
+  font-size:15px;
+  font-weight:900;
+  color:#fff;
+}
+.related-promos-sub{
+  color:#b7c7d6;
+  font-size:12px;
+  line-height:1.45;
+  margin-top:4px;
+}
+.related-promos-count{
+  flex:0 0 auto;
+  border:1px solid rgba(255,138,0,.7);
+  background:rgba(255,138,0,.13);
+  color:#ffb04a;
+  border-radius:999px;
+  padding:6px 9px;
+  font-size:11px;
+  font-weight:900;
+}
+.related-promo-list{display:grid;gap:7px}
+.related-promo-item{
+  display:grid;
+  grid-template-columns:22px 76px minmax(0,1fr) minmax(120px,.85fr) 92px;
+  gap:10px;
+  align-items:center;
+  border:1px solid #275879;
+  border-radius:10px;
+  padding:9px 10px;
+  background:#0b365e;
+}
+.related-promo-item.off{opacity:.48}
+.related-promo-item input{
+  width:18px;
+  height:18px;
+  min-width:18px;
+  accent-color:#49d05a;
+  cursor:pointer;
+}
+.related-promo-number{color:#ffb04a;font-size:12px;font-weight:900}
+.related-promo-name{font-weight:900}
+.related-promo-source{color:#b7c7d6;font-size:11px;line-height:1.35}
+.related-promo-price{text-align:right;color:#49d05a;font-weight:900}
+.related-promos-note{
+  margin-top:10px;
+  color:#a9bfd2;
+  font-size:11px;
+  line-height:1.45;
+}
+@media(max-width:700px){
+  .related-promos-head{flex-direction:column}
+  .related-promo-item{grid-template-columns:22px 66px minmax(0,1fr) 80px}
+  .related-promo-source{grid-column:3 / 5}
+}
+
 @media(max-width:900px){
   .info-grid{grid-template-columns:1fr}
   .info-tile{min-height:auto}
@@ -440,6 +511,20 @@ td:last-child,th:last-child{text-align:right}
         <div class="selection-count" id="selectionCount">Alle kaarten geselecteerd</div>
       </div>
       <div class="selection-help">Alle kaarten staan standaard aangevinkt. Mis je een kaart? Vink deze uit en de waarde wordt direct opnieuw berekend.</div>
+
+      <div class="related-promos" id="relatedPromos">
+        <div class="related-promos-head">
+          <div>
+            <div class="related-promos-title">Promo kaarten bij deze set</div>
+            <div class="related-promos-sub" id="relatedPromosSub"></div>
+          </div>
+          <div class="related-promos-count" id="relatedPromosCount"></div>
+        </div>
+        <div class="related-promo-list" id="relatedPromoList"></div>
+        <div class="related-promos-note">
+          Bij Volledige set en Masterset tellen de aangevinkte promo kaarten mee. Mis je een promo, dan kun je hem hier uitvinken.
+        </div>
+      </div>
       <table>
         <thead><tr><th class="select-col">✓</th><th>Nummer</th><th>Kaartnaam</th><th>Uitvoering</th><th>Avg. 30 dagen</th></tr></thead>
         <tbody id="priceRows"></tbody>
@@ -451,7 +536,7 @@ td:last-child,th:last-child{text-align:right}
   <div class="info-grid">
     <div class="info-tile">
       <strong>Zo werkt de ZamexCards Setwaarde Calculator</strong>
-      <span>Kies de taal, set, soort verzameling en conditie. In de kaartenlijst kun je ontbrekende kaarten uitvinken; deze worden dan direct niet meer meegerekend in de setwaarde en inkoopwaarde.</span>
+      <span>Kies de taal, set, soort verzameling en conditie. Bij ondersteunde sets zie je ook welke promo kaarten bij de set horen. Ontbrekende kaarten en promo’s kun je uitvinken; die tellen dan niet mee.</span>
     </div>
     <div class="info-tile">
       <strong>ZamexCards marktwaarde</strong>
@@ -567,6 +652,107 @@ const CONDITIONS={
 };
 
 
+
+const RELATED_SET_PROMOS={
+  '151':[
+    {id:'svp-046',number:'SVP 046',name:'Bulbasaur',source:'151 Poster Collection'},
+    {id:'svp-047',number:'SVP 047',name:'Charmander',source:'151 Poster Collection'},
+    {id:'svp-048',number:'SVP 048',name:'Squirtle',source:'151 Poster Collection'},
+    {id:'svp-049',number:'SVP 049',name:'Zapdos ex',source:'151 Collection—Zapdos ex'},
+    {id:'svp-050',number:'SVP 050',name:'Alakazam ex',source:'151 Collection—Alakazam ex'},
+    {id:'svp-051',number:'SVP 051',name:'Snorlax',source:'151 Elite Trainer Box'},
+    {id:'svp-052',number:'SVP 052',name:'Mewtwo',source:'151 Ultra-Premium Collection'},
+    {id:'svp-053',number:'SVP 053',name:'Mew ex',source:'151 Ultra-Premium Collection'}
+  ]
+};
+
+let relatedPromos=[];
+
+function relatedPromoSetKey(){
+  if(!selectedSet) return null;
+  const id=String(selectedSet.sourceId||'').toLowerCase();
+  const name=String(displayName(selectedSet)||selectedSet.name||'').toLowerCase();
+  if(
+    id==='sv03.5' || id==='sv3pt5' || id==='mew' ||
+    name==='151' || name.includes('scarlet & violet—151') ||
+    name.includes('scarlet & violet 151') || name.includes('scarlet violet 151')
+  ) return '151';
+  return null;
+}
+
+async function loadRelatedPromos(){
+  relatedPromos=[];
+  const key=relatedPromoSetKey();
+  const defs=key?RELATED_SET_PROMOS[key]:null;
+  if(!defs?.length){
+    renderRelatedPromos();
+    return;
+  }
+
+  relatedPromos=await Promise.all(defs.map(async def=>{
+    try{
+      const d=await fetchTimeout(`${API}/en/cards/${def.id}`,8000);
+      const p=d?.pricing?.cardmarket||{};
+      const normal=Number.isFinite(p.avg30)?p.avg30:null;
+      const holo=Number.isFinite(p['avg30-holo'])?p['avg30-holo']:null;
+      return {...def,name:d?.name||def.name,normal,holo,price:holo??normal};
+    }catch(e){
+      return {...def,normal:null,holo:null,price:null};
+    }
+  }));
+  renderRelatedPromos();
+}
+
+function externalPromoRow(p){
+  return {
+    id:p.id,
+    localId:p.number,
+    name:p.name,
+    source:p.source,
+    normal:p.normal,
+    holo:p.holo,
+    variant:'Promo · Black Star',
+    price:p.price,
+    isPromo:true,
+    isExternalPromo:true
+  };
+}
+
+function renderRelatedPromos(){
+  const box=$('relatedPromos');
+  const list=$('relatedPromoList');
+  if(!box||!list) return;
+
+  if(!relatedPromos.length){
+    box.classList.remove('show');
+    list.innerHTML='';
+    return;
+  }
+
+  box.classList.add('show');
+  $('relatedPromosSub').textContent=
+    `${relatedPromos.length} officiële Black Star Promo kaarten die bij producten van ${displayName(selectedSet)} zijn uitgebracht.`;
+
+  const factor=CONDITIONS[condition]?.factor||1;
+  let included=0;
+
+  list.innerHTML=relatedPromos.map(p=>{
+    const row=externalPromoRow(p);
+    const key=rowSelectionKey(row);
+    const checked=!excludedRows.has(key);
+    if(checked) included++;
+    return `<label class="related-promo-item ${checked?'':'off'}">
+      <input class="related-promo-check" type="checkbox" data-key="${escapeHtml(key)}" ${checked?'checked':''}>
+      <span class="related-promo-number">${escapeHtml(p.number)}</span>
+      <span class="related-promo-name">${escapeHtml(p.name)}</span>
+      <span class="related-promo-source">${escapeHtml(p.source)}</span>
+      <span class="related-promo-price">${p.price==null?'Prijs n.b.':euro(p.price*factor)}</span>
+    </label>`;
+  }).join('');
+
+  $('relatedPromosCount').textContent=`${included} van ${relatedPromos.length} promo's meegenomen`;
+}
+
 const PROMO_STAMPS=new Set([
   'w-promo','pre-release','pokemon-center','set-logo','staff',
   'gamestop','eb-games','best-buy','target','walmart',
@@ -670,7 +856,7 @@ async function loadSets(){
   $('search').disabled=true;
   $('setSelect').disabled=true;
   $('setSelect').innerHTML='<option>Sets laden…</option>';
-  sets=[]; filteredSets=[]; selectedSet=null; setDetail=null; cards=[]; pricesLoading=false; excludedRows.clear();
+  sets=[]; filteredSets=[]; selectedSet=null; setDetail=null; cards=[]; relatedPromos=[]; pricesLoading=false; excludedRows.clear();
   updateResult();
 
   try{
@@ -762,6 +948,7 @@ $('setSelect').addEventListener('change',e=>chooseSet(e.target.value));
 
 async function chooseSet(id){
   excludedRows.clear();
+  relatedPromos=[];
   selectedSet=sets.find(s=>s.id===id);
   if(!selectedSet) return;
   $('setSelect').value=id;
@@ -817,6 +1004,7 @@ async function loadCardPrices(){
     $('loadingText').textContent=`Kaartprijzen ophalen · ${pct}%`;
     updateResult();
   }
+  await loadRelatedPromos();
   pricesLoading=false;
   $('loadingBox').style.display='none';
   updateResult();
@@ -867,6 +1055,13 @@ function buildValueRows(){
         }
       }
     }
+  }
+
+  if(level==='full'||level==='master'){
+    relatedPromos.forEach(p=>{
+      const r=externalPromoRow(p);
+      addRow(r,r.variant,r.price,true);
+    });
   }
 
   return rows;
@@ -953,6 +1148,7 @@ function updateResult(){
       ?`${c.count} van ${c.allCount} kaart${c.allCount===1?'':'en'} meegenomen${c.excludedCount?` · ${c.excludedCount} uitgevinkt`:''}`
       :'Nog geen kaarten geladen';
   }
+  renderRelatedPromos();
 }
 
 
@@ -1132,7 +1328,7 @@ async function generateOfferPdf(){
         return [
           String(r.localId||''),
           String(r.name||''),
-          String(r.variant||''),
+          String(r.isExternalPromo&&r.source?`${r.variant} · ${r.source}`:(r.variant||'')),
           raw==null?'-':pdfMoney(raw),
           adjusted==null?'-':pdfMoney(adjusted)
         ];
@@ -1229,6 +1425,16 @@ document.querySelectorAll('input[name=condition]').forEach(r=>r.addEventListener
 }));
 
 
+
+
+$('relatedPromoList').addEventListener('change',e=>{
+  const cb=e.target.closest('.related-promo-check');
+  if(!cb) return;
+  const key=cb.dataset.key||'';
+  if(cb.checked) excludedRows.delete(key);
+  else excludedRows.add(key);
+  updateResult();
+});
 
 $('priceRows').addEventListener('change',e=>{
   const cb=e.target.closest('.card-check');

@@ -1,4 +1,4 @@
 Upload index.html en .nojekyll naar de hoofdmap van de GitHub repository.
-Nieuw: alle kaarten staan standaard aangevinkt in 'Bekijk alle kaarten'.
-Uitgevinkte kaarten tellen niet mee in marktwaarde, 80% inkoopwaarde of PDF-overzicht.
-Met 'Alle kaarten meenemen' kan de hele lijst in één keer aan/uit worden gezet.
+Nieuw: apart blok 'Promo kaarten bij deze set' in Bekijk alle kaarten.
+Voor Scarlet & Violet—151 worden SVP 046 t/m SVP 053 getoond.
+Bij Volledige set en Masterset tellen aangevinkte promo's mee in de waarde en PDF.
