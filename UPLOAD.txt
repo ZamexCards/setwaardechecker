@@ -1,2 +1,3 @@
 Upload index.html en .nojekyll naar de hoofdmap van de GitHub repository.
-De promo kaarten staan nu helemaal onderaan de kaartenlijst, na alle normale kaarten.
+Nieuw: in de PDF staan promo kaarten niet meer tussen de normale kaarten.
+Ze worden nu apart onderaan getoond in een eigen blok: 'Promo kaarten bij deze set'.

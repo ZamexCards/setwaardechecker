@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>ZamexCards Setwaarde Calculator</title>
 <meta name="description" content="Bereken de 30-dagenwaarde en 80% inkoopwaarde van complete Pokémon TCG-sets.">
-<meta name="zc-build" content="2026-09-04-promo-bottom-v1">
+<meta name="zc-build" content="2026-09-04-pdf-promos-bottom-v1">
 <style>
 :root{
   --bg:#041930; --panel:#093158; --panel2:#082e52; --green:#49d05a;
@@ -1322,25 +1322,39 @@ async function generateOfferPdf(){
     doc.setFontSize(11);
     doc.text('Kaarten en losse kaartwaarden',12,113);
 
-    const rows=[...c.rows]
+    const includedRows=[...c.rows]
       .filter(r=>r.included)
-      .sort((a,b)=>num(a.localId)-num(b.localId)||String(a.localId).localeCompare(String(b.localId)))
+      .sort((a,b)=>num(a.localId)-num(b.localId)||String(a.localId).localeCompare(String(b.localId)));
+
+    const normalRows=includedRows
+      .filter(r=>!r.isPromo)
       .map(r=>{
         const raw=r.price;
         const adjusted=raw==null?null:raw*c.factor;
         return [
           String(r.localId||''),
           String(r.name||''),
-          String(r.isExternalPromo&&r.source?`${r.variant} · ${r.source}`:(r.variant||'')),
+          String(r.variant||''),
           raw==null?'-':pdfMoney(raw),
           adjusted==null?'-':pdfMoney(adjusted)
         ];
       });
 
-    doc.autoTable({
-      startY:117,
-      head:[['Nummer','Kaartnaam','Uitvoering','Avg. 30d','Kaartwaarde']],
-      body:rows,
+    const promoRows=includedRows
+      .filter(r=>r.isPromo)
+      .map(r=>{
+        const raw=r.price;
+        const adjusted=raw==null?null:raw*c.factor;
+        return [
+          String(r.localId||''),
+          String(r.name||''),
+          String(r.isExternalPromo&&r.source?r.source:(r.variant||'Promo')),
+          raw==null?'-':pdfMoney(raw),
+          adjusted==null?'-':pdfMoney(adjusted)
+        ];
+      });
+
+    const sharedTableOptions={
       margin:{top:27,left:12,right:12,bottom:18},
       theme:'grid',
       styles:{
@@ -1359,21 +1373,61 @@ async function generateOfferPdf(){
         fontSize:8
       },
       alternateRowStyles:{fillColor:[245,249,252]},
-      columnStyles:{
-        0:{cellWidth:18},
-        1:{cellWidth:65},
-        2:{cellWidth:31},
-        3:{cellWidth:35,halign:'right'},
-        4:{cellWidth:37,halign:'right',fontStyle:'bold'}
-      },
       didDrawPage:function(data){
         const current=doc.internal.getCurrentPageInfo().pageNumber;
         if(current>1) addPdfBrandHeader(doc,logoData,true);
       }
-    });
+    };
+
+    let lastTableY=113;
+
+    if(normalRows.length){
+      doc.autoTable({
+        ...sharedTableOptions,
+        startY:117,
+        head:[['Nummer','Kaartnaam','Uitvoering','Avg. 30d','Kaartwaarde']],
+        body:normalRows,
+        columnStyles:{
+          0:{cellWidth:18},
+          1:{cellWidth:65},
+          2:{cellWidth:31},
+          3:{cellWidth:35,halign:'right'},
+          4:{cellWidth:37,halign:'right',fontStyle:'bold'}
+        }
+      });
+      lastTableY=doc.lastAutoTable?.finalY||117;
+    }
+
+    if(promoRows.length){
+      let promoStartY=normalRows.length ? lastTableY + 10 : 117;
+      const pageHeight=doc.internal.pageSize.getHeight();
+      if(promoStartY>pageHeight-35){
+        doc.addPage();
+        addPdfBrandHeader(doc,logoData,true);
+        promoStartY=32;
+      }
+      doc.setTextColor(4,25,48);
+      doc.setFont('helvetica','bold');
+      doc.setFontSize(11);
+      doc.text('Promo kaarten bij deze set',12,promoStartY);
+      doc.autoTable({
+        ...sharedTableOptions,
+        startY:promoStartY+4,
+        head:[['Nummer','Promo kaart','Product / herkomst','Avg. 30d','Kaartwaarde']],
+        body:promoRows,
+        columnStyles:{
+          0:{cellWidth:22},
+          1:{cellWidth:58},
+          2:{cellWidth:34},
+          3:{cellWidth:35,halign:'right'},
+          4:{cellWidth:37,halign:'right',fontStyle:'bold'}
+        }
+      });
+      lastTableY=doc.lastAutoTable?.finalY||promoStartY+4;
+    }
 
     // Korte toelichting na de tabel, indien er ruimte is; anders nieuwe pagina.
-    let y=(doc.lastAutoTable?.finalY||112)+7;
+    let y=(typeof lastTableY!=='undefined'?lastTableY:(doc.lastAutoTable?.finalY||112))+7;
     const pageH=doc.internal.pageSize.getHeight();
     if(y>pageH-30){
       doc.addPage();
