@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>ZamexCards Setwaarde Calculator</title>
 <meta name="description" content="Bereken de 30-dagenwaarde en 80% inkoopwaarde van complete Pokémon TCG-sets.">
-<meta name="zc-build" content="2026-09-04-all-promos-bottom-v2">
+<meta name="zc-build" content="2026-09-04-promo-setcodes-v1">
 <style>
 :root{
   --bg:#041930; --panel:#093158; --panel2:#082e52; --green:#49d05a;
@@ -328,7 +328,7 @@ td:last-child,th:last-child{text-align:right}
 .related-promo-list{display:grid;gap:7px}
 .related-promo-item{
   display:grid;
-  grid-template-columns:22px 76px minmax(0,1fr) minmax(120px,.85fr) 92px;
+  grid-template-columns:22px 62px 72px minmax(0,1fr) minmax(120px,.85fr) 92px;
   gap:10px;
   align-items:center;
   border:1px solid #275879;
@@ -344,7 +344,7 @@ td:last-child,th:last-child{text-align:right}
   accent-color:#49d05a;
   cursor:pointer;
 }
-.related-promo-number{color:#ffb04a;font-size:12px;font-weight:900}
+.related-promo-code{color:#49d05a;font-size:12px;font-weight:900;letter-spacing:.04em}\n.related-promo-number{color:#ffb04a;font-size:12px;font-weight:900}
 .related-promo-name{font-weight:900}
 .related-promo-source{color:#b7c7d6;font-size:11px;line-height:1.35}
 .related-promo-price{text-align:right;color:#49d05a;font-weight:900}
@@ -356,8 +356,8 @@ td:last-child,th:last-child{text-align:right}
 }
 @media(max-width:700px){
   .related-promos-head{flex-direction:column}
-  .related-promo-item{grid-template-columns:22px 66px minmax(0,1fr) 80px}
-  .related-promo-source{grid-column:3 / 5}
+  .related-promo-item{grid-template-columns:22px 54px 62px minmax(0,1fr) 80px}
+  .related-promo-source{grid-column:4 / 6}
 }
 
 @media(max-width:900px){
@@ -721,6 +721,39 @@ function externalPromoRow(p){
   };
 }
 
+
+function promoSetCode(row){
+  const local=String(row?.localId||'').trim().toUpperCase();
+  const id=String(row?.id||'').trim().toLowerCase();
+
+  if(/^SVP[\\s-]?\\d+/i.test(local) || /^svp[-_]/i.test(id)) return 'SVP';
+  if(/^SWSH[\\s-]?\\d+/i.test(local) || /^swshp?[-_]/i.test(id)) return 'SWSH';
+  if(/^MEP[\\s-]?\\d+/i.test(local) || /^mep[-_]/i.test(id)) return 'MEP';
+  if(/^SMP[\\s-]?\\d+/i.test(local) || /^smp[-_]/i.test(id)) return 'SMP';
+  if(/^XY[\\s-]?\\d+/i.test(local) || /^xyp[-_]/i.test(id)) return 'XY';
+  if(/^BW[\\s-]?\\d+/i.test(local) || /^bwp[-_]/i.test(id)) return 'BW';
+  if(/^DP[\\s-]?\\d+/i.test(local) || /^dpp[-_]/i.test(id)) return 'DP';
+
+  const m=local.match(/^([A-Z]{2,6})[\\s-]?\\d+/);
+  if(m) return m[1];
+
+  const p=id.match(/^([a-z]{2,8})[-_]/);
+  if(p){
+    let code=p[1].toUpperCase();
+    if(code==='SWSHP') code='SWSH';
+    if(code.endsWith('P') && code.length>3 && code!=='MEP' && code!=='SMP') code=code.slice(0,-1);
+    return code;
+  }
+
+  return String(selectedSet?.sourceId||'').toUpperCase() || '—';
+}
+
+function promoCardNumber(row){
+  const local=String(row?.localId||'').trim().toUpperCase();
+  const m=local.match(/(?:[A-Z]{2,6})[\\s-]?(\\d+[A-Z]?)/);
+  return m ? m[1] : local;
+}
+
 function renderRelatedPromos(calcResult=null){
   const box=$('relatedPromos');
   const list=$('relatedPromoList');
@@ -784,7 +817,8 @@ function renderRelatedPromos(calcResult=null){
 
     return `<label class="related-promo-item ${checked?'':'off'}">
       <input class="related-promo-check" type="checkbox" data-key="${escapeHtml(key)}" ${checked?'checked':''}>
-      <span class="related-promo-number">${escapeHtml(String(r.localId||''))}</span>
+      <span class="related-promo-code">${escapeHtml(promoSetCode(r))}</span>
+      <span class="related-promo-number">${escapeHtml(promoCardNumber(r))}</span>
       <span class="related-promo-name">${escapeHtml(r.name||'')}</span>
       <span class="related-promo-source">${escapeHtml(source)}</span>
       <span class="related-promo-price">${r.price==null?'Prijs n.b.':euro(r.price*factor)}</span>
@@ -1386,7 +1420,8 @@ async function generateOfferPdf(){
         const raw=r.price;
         const adjusted=raw==null?null:raw*c.factor;
         return [
-          String(r.localId||''),
+          promoSetCode(r),
+          promoCardNumber(r),
           String(r.name||''),
           String(r.isExternalPromo&&r.source?r.source:(r.variant||'Promo')),
           raw==null?'-':pdfMoney(raw),
@@ -1453,14 +1488,15 @@ async function generateOfferPdf(){
       doc.autoTable({
         ...sharedTableOptions,
         startY:promoStartY+4,
-        head:[['Nummer','Promo kaart','Product / herkomst','Avg. 30d','Kaartwaarde']],
+        head:[['Setcode','Nr.','Promo kaart','Product / herkomst','Avg. 30d','Kaartwaarde']],
         body:promoRows,
         columnStyles:{
-          0:{cellWidth:22},
-          1:{cellWidth:58},
-          2:{cellWidth:34},
-          3:{cellWidth:35,halign:'right'},
-          4:{cellWidth:37,halign:'right',fontStyle:'bold'}
+          0:{cellWidth:18,fontStyle:'bold'},
+          1:{cellWidth:17},
+          2:{cellWidth:45},
+          3:{cellWidth:34},
+          4:{cellWidth:34,halign:'right'},
+          5:{cellWidth:38,halign:'right',fontStyle:'bold'}
         }
       });
       lastTableY=doc.lastAutoTable?.finalY||promoStartY+4;
