@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>ZamexCards Setwaarde Calculator</title>
 <meta name="description" content="Bereken de 30-dagenwaarde en 80% inkoopwaarde van complete Pokémon TCG-sets.">
-<meta name="zc-build" content="2026-08-27-promos-v1">
+<meta name="zc-build" content="2026-09-04-card-selection-v1">
 <style>
 :root{
   --bg:#041930; --panel:#093158; --panel2:#082e52; --green:#49d05a;
@@ -227,6 +227,67 @@ td:last-child,th:last-child{text-align:right}
   font-weight:900;
 }
 
+
+.selection-toolbar{
+  position:sticky;
+  top:0;
+  z-index:4;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  padding:12px 14px;
+  background:#082e52;
+  border-bottom:1px solid #1d506f;
+}
+.selection-all{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  cursor:pointer;
+  font-weight:900;
+  color:#ffffff;
+}
+.selection-all input,
+.card-check{
+  width:18px;
+  height:18px;
+  min-width:18px;
+  accent-color:#49d05a;
+  cursor:pointer;
+}
+.selection-count{
+  color:#b7c7d6;
+  font-size:12px;
+  font-weight:800;
+  text-align:right;
+}
+.select-col{
+  width:48px;
+  text-align:center !important;
+}
+.card-row-excluded{
+  opacity:.48;
+}
+.card-row-excluded td{
+  text-decoration:none;
+}
+.selection-help{
+  padding:10px 14px;
+  background:#0b3b67;
+  color:#dce7f0;
+  font-size:12px;
+  line-height:1.5;
+  border-bottom:1px solid #1d506f;
+}
+@media(max-width:600px){
+  .selection-toolbar{
+    align-items:flex-start;
+    flex-direction:column;
+  }
+  .selection-count{text-align:left}
+}
+
 @media(max-width:900px){
   .info-grid{grid-template-columns:1fr}
   .info-tile{min-height:auto}
@@ -371,8 +432,16 @@ td:last-child,th:last-child{text-align:right}
       </span>
     </button>
     <div class="tablewrap" id="tableWrap">
+      <div class="selection-toolbar">
+        <label class="selection-all">
+          <input id="toggleAllCards" type="checkbox" checked>
+          <span>Alle kaarten meenemen</span>
+        </label>
+        <div class="selection-count" id="selectionCount">Alle kaarten geselecteerd</div>
+      </div>
+      <div class="selection-help">Alle kaarten staan standaard aangevinkt. Mis je een kaart? Vink deze uit en de waarde wordt direct opnieuw berekend.</div>
       <table>
-        <thead><tr><th>Nummer</th><th>Kaartnaam</th><th>Uitvoering</th><th>Avg. 30 dagen</th></tr></thead>
+        <thead><tr><th class="select-col">✓</th><th>Nummer</th><th>Kaartnaam</th><th>Uitvoering</th><th>Avg. 30 dagen</th></tr></thead>
         <tbody id="priceRows"></tbody>
       </table>
     </div>
@@ -382,7 +451,7 @@ td:last-child,th:last-child{text-align:right}
   <div class="info-grid">
     <div class="info-tile">
       <strong>Zo werkt de ZamexCards Setwaarde Calculator</strong>
-      <span>Kies de taal, zoek de Pokémon-set, selecteer basic set, volledige set of masterset en kies daarna de staat. Bij Volledige set en Masterset worden gekoppelde promo-uitvoeringen automatisch meegenomen.</span>
+      <span>Kies de taal, set, soort verzameling en conditie. In de kaartenlijst kun je ontbrekende kaarten uitvinken; deze worden dan direct niet meer meegerekend in de setwaarde en inkoopwaarde.</span>
     </div>
     <div class="info-tile">
       <strong>ZamexCards marktwaarde</strong>
@@ -563,6 +632,7 @@ function promoPriceForCard(card,promo){
 }
 
 let language='Engels', sets=[], filteredSets=[], selectedSet=null, setDetail=null, cards=[], level='basic', condition='near-mint', pricesLoading=false;
+const excludedRows=new Set();
 
 const $=id=>document.getElementById(id);
 const euro=v=>new Intl.NumberFormat('nl-NL',{style:'currency',currency:'EUR'}).format(v||0);
@@ -600,7 +670,7 @@ async function loadSets(){
   $('search').disabled=true;
   $('setSelect').disabled=true;
   $('setSelect').innerHTML='<option>Sets laden…</option>';
-  sets=[]; filteredSets=[]; selectedSet=null; setDetail=null; cards=[]; pricesLoading=false;
+  sets=[]; filteredSets=[]; selectedSet=null; setDetail=null; cards=[]; pricesLoading=false; excludedRows.clear();
   updateResult();
 
   try{
@@ -691,6 +761,7 @@ $('search').addEventListener('input',()=>{
 $('setSelect').addEventListener('change',e=>chooseSet(e.target.value));
 
 async function chooseSet(id){
+  excludedRows.clear();
   selectedSet=sets.find(s=>s.id===id);
   if(!selectedSet) return;
   $('setSelect').value=id;
@@ -757,18 +828,16 @@ function activeCards(){
   return cards.filter(c=>level!=='basic'||num(c.localId)<=official);
 }
 
-function calc(){
-  if(!setDetail)return {value:0,priced:0,count:0,missing:0,rows:[],promoCount:0};
+function rowSelectionKey(row){
+  return `${row.id||row.localId||''}|||${row.variant||''}`;
+}
+
+function buildValueRows(){
+  if(!setDetail) return [];
   const chosen=activeCards();
-  let value=0,priced=0,count=0,rows=[],promoCount=0;
+  const rows=[];
 
   const addRow=(c,variant,price,isPromo=false)=>{
-    count++;
-    if(price!=null&&price>0){
-      value+=price;
-      priced++;
-    }
-    if(isPromo) promoCount++;
     rows.push({...c,variant,price,isPromo});
   };
 
@@ -792,7 +861,6 @@ function calc(){
       const price=c.holo??c.normal;
       addRow(c,c.holo!=null?'Holo':'Normal',price,false);
 
-      // Een complete set bevat ook de set-gekoppelde promo-uitvoeringen.
       if(level==='full'){
         for(const promo of promoVariantsForCard(c)){
           addRow(c,`Promo · ${promo.label}`,promoPriceForCard(c,promo),true);
@@ -801,28 +869,43 @@ function calc(){
     }
   }
 
-  const official=setDetail.cardCount?.official||0;
-  const total=setDetail.cardCount?.total||setDetail.cards?.length||0;
+  return rows;
+}
 
-  // Alleen de basic set heeft een vast minimum op basis van het officiële setnummer.
-  // Full/master tellen de werkelijk gevonden kaart- en promo-uitvoeringen.
-  if(level==='basic'){
-    count=Math.max(count,official||0);
-  }else if(level==='full'){
-    const baseRows=chosen.length;
-    count=Math.max(count,total + promoCount,baseRows + promoCount);
-  }
+function calc(){
+  if(!setDetail)return {
+    value:0,rawValue:0,factor:1,priced:0,count:0,missing:0,
+    rows:[],promoCount:0,allCount:0,excludedCount:0
+  };
 
   const factor=CONDITIONS[condition]?.factor||1;
+  const allRows=buildValueRows().map(r=>{
+    const selectionKey=rowSelectionKey(r);
+    return {...r,selectionKey,included:!excludedRows.has(selectionKey)};
+  });
+
+  let rawValue=0,priced=0,count=0,promoCount=0;
+  for(const r of allRows){
+    if(!r.included) continue;
+    count++;
+    if(r.price!=null&&r.price>0){
+      rawValue+=r.price;
+      priced++;
+    }
+    if(r.isPromo) promoCount++;
+  }
+
   return {
-    value:value*factor,
-    rawValue:value,
+    value:rawValue*factor,
+    rawValue,
     factor,
     priced,
     count,
     missing:Math.max(count-priced,0),
-    rows,
-    promoCount
+    rows:allRows,
+    promoCount,
+    allCount:allRows.length,
+    excludedCount:allRows.length-count
   };
 }
 
@@ -840,7 +923,7 @@ function updateResult(){
   $('coveragePct').textContent=pct+'%';
   $('coverageProgress').style.width=pct+'%';
   $('coverageLine').textContent=c.priced
-    ?`${c.priced} van ${c.count} geprijsd · Gem. ${euro(c.value/c.priced)}${c.promoCount?` · ${c.promoCount} promo-uitvoering${c.promoCount===1?'':'en'}`:''}`
+    ?`${c.priced} van ${c.count} geselecteerde kaart${c.count===1?'':'en'} geprijsd · Gem. ${euro(c.value/c.priced)}${c.promoCount?` · ${c.promoCount} promo-uitvoering${c.promoCount===1?'':'en'}`:''}${c.excludedCount?` · ${c.excludedCount} uitgevinkt`:''}`
     :'Nog geen prijzen';
   $('missingLine').textContent=c.missing?`${c.missing} uitvoeringen zonder betrouwbare Cardmarket-30-dagenprijs tellen niet mee.`:'';
   const pdfBtn=$('pdfOfferBtn');
@@ -851,12 +934,25 @@ function updateResult(){
   }
 
   const rows=[...c.rows].sort((a,b)=>num(a.localId)-num(b.localId)||String(a.localId).localeCompare(String(b.localId)));
-  $('priceRows').innerHTML=rows.map(r=>`<tr>
+  $('priceRows').innerHTML=rows.map(r=>`<tr class="${r.included?'':'card-row-excluded'}">
+    <td class="select-col"><input class="card-check" type="checkbox" data-key="${escapeHtml(r.selectionKey)}" ${r.included?'checked':''} aria-label="${r.included?'Meenemen':'Niet meenemen'}: ${escapeHtml(r.name||'kaart')}"></td>
     <td>${r.localId||''}</td>
     <td>${escapeHtml(r.name||'')}</td>
     <td>${r.isPromo?`<span class="promo-pill">${escapeHtml(r.variant||'Promo')}</span>`:(r.variant||'')}</td>
     <td>${r.price==null?'Niet beschikbaar':euro(r.price)}</td>
   </tr>`).join('');
+
+  const allToggle=$('toggleAllCards');
+  if(allToggle){
+    allToggle.checked=c.allCount>0&&c.excludedCount===0;
+    allToggle.indeterminate=c.excludedCount>0&&c.count>0;
+    allToggle.disabled=!c.allCount;
+  }
+  if($('selectionCount')){
+    $('selectionCount').textContent=c.allCount
+      ?`${c.count} van ${c.allCount} kaart${c.allCount===1?'':'en'} meegenomen${c.excludedCount?` · ${c.excludedCount} uitgevinkt`:''}`
+      :'Nog geen kaarten geladen';
+  }
 }
 
 
@@ -1018,7 +1114,7 @@ async function generateOfferPdf(){
     doc.setFontSize(8.5);
     doc.setTextColor(55,75,95);
     doc.text(
-      `Prijsdekking: ${c.priced} van ${c.count} (${pct}%).${c.promoCount?` Inclusief ${c.promoCount} gekoppelde promo-uitvoering${c.promoCount===1?'':'en'}.`:''} Kaartwaarde is gebaseerd op Cardmarket avg. 30 dagen en gecorrigeerd voor ${cond.label}.`,
+      `Selectie: ${c.count} van ${c.allCount} kaarten meegenomen${c.excludedCount?` (${c.excludedCount} uitgevinkt)`:''}. Prijsdekking: ${c.priced} van ${c.count} (${pct}%).${c.promoCount?` Inclusief ${c.promoCount} gekoppelde promo-uitvoering${c.promoCount===1?'':'en'}.`:''} Waarde is gebaseerd op Cardmarket avg. 30 dagen en gecorrigeerd voor ${cond.label}.`,
       16,100,{maxWidth:178}
     );
 
@@ -1028,6 +1124,7 @@ async function generateOfferPdf(){
     doc.text('Kaarten en losse kaartwaarden',12,113);
 
     const rows=[...c.rows]
+      .filter(r=>r.included)
       .sort((a,b)=>num(a.localId)-num(b.localId)||String(a.localId).localeCompare(String(b.localId)))
       .map(r=>{
         const raw=r.price;
@@ -1119,6 +1216,7 @@ function escapeHtml(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':
 
 document.querySelectorAll('input[name=level]').forEach(r=>r.addEventListener('change',e=>{
   level=e.target.value;
+  excludedRows.clear();
   document.querySelectorAll('.level').forEach(x=>x.classList.toggle('active',x.querySelector('input').checked));
   updateResult();
 }));
@@ -1130,6 +1228,26 @@ document.querySelectorAll('input[name=condition]').forEach(r=>r.addEventListener
   updateResult();
 }));
 
+
+
+$('priceRows').addEventListener('change',e=>{
+  const cb=e.target.closest('.card-check');
+  if(!cb) return;
+  const key=cb.dataset.key||'';
+  if(cb.checked) excludedRows.delete(key);
+  else excludedRows.add(key);
+  updateResult();
+});
+
+$('toggleAllCards').addEventListener('change',e=>{
+  const rows=buildValueRows();
+  if(e.target.checked){
+    excludedRows.clear();
+  }else{
+    rows.forEach(r=>excludedRows.add(rowSelectionKey(r)));
+  }
+  updateResult();
+});
 
 $('pdfOfferBtn').addEventListener('click',generateOfferPdf);
 
