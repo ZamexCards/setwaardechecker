@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>ZamexCards Setwaarde Calculator</title>
 <meta name="description" content="Bereken de 30-dagenwaarde en 80% inkoopwaarde van complete Pokémon TCG-sets.">
-<meta name="zc-build" content="2026-09-04-promo-setcodes-v1">
+<meta name="zc-build" content="2026-10-10-deduplicate-racefix-v1">
 <style>
 :root{
   --bg:#041930; --panel:#093158; --panel2:#082e52; --green:#49d05a;
@@ -344,7 +344,8 @@ td:last-child,th:last-child{text-align:right}
   accent-color:#49d05a;
   cursor:pointer;
 }
-.related-promo-code{color:#49d05a;font-size:12px;font-weight:900;letter-spacing:.04em}\n.related-promo-number{color:#ffb04a;font-size:12px;font-weight:900}
+.related-promo-code{color:#49d05a;font-size:12px;font-weight:900;letter-spacing:.04em}
+.related-promo-number{color:#ffb04a;font-size:12px;font-weight:900}
 .related-promo-name{font-weight:900}
 .related-promo-source{color:#b7c7d6;font-size:11px;line-height:1.35}
 .related-promo-price{text-align:right;color:#49d05a;font-weight:900}
@@ -671,10 +672,10 @@ const RELATED_SET_PROMOS={
 
 let relatedPromos=[];
 
-function relatedPromoSetKey(){
-  if(!selectedSet) return null;
-  const id=String(selectedSet.sourceId||'').toLowerCase();
-  const name=String(displayName(selectedSet)||selectedSet.name||'').toLowerCase();
+function relatedPromoSetKey(setRef=selectedSet){
+  if(!setRef) return null;
+  const id=String(setRef.sourceId||'').toLowerCase();
+  const name=String(displayName(setRef)||setRef.name||'').toLowerCase();
   if(
     id==='sv03.5' || id==='sv3pt5' || id==='mew' ||
     name==='151' || name.includes('scarlet & violet—151') ||
@@ -683,16 +684,19 @@ function relatedPromoSetKey(){
   return null;
 }
 
-async function loadRelatedPromos(){
-  relatedPromos=[];
-  const key=relatedPromoSetKey();
+async function loadRelatedPromos(generation=loadGeneration,setRef=selectedSet){
+  const key=relatedPromoSetKey(setRef);
   const defs=key?RELATED_SET_PROMOS[key]:null;
+
   if(!defs?.length){
-    renderRelatedPromos();
+    if(generation===loadGeneration){
+      relatedPromos=[];
+      renderRelatedPromos();
+    }
     return;
   }
 
-  relatedPromos=await Promise.all(defs.map(async def=>{
+  const loaded=await Promise.all(defs.map(async def=>{
     try{
       const d=await fetchTimeout(`${API}/en/cards/${def.id}`,8000);
       const p=d?.pricing?.cardmarket||{};
@@ -703,6 +707,13 @@ async function loadRelatedPromos(){
       return {...def,normal:null,holo:null,price:null};
     }
   }));
+
+  // Een oudere set-load mag nooit promo's in de nieuwe set injecteren.
+  if(generation!==loadGeneration) return;
+
+  const unique=new Map();
+  loaded.forEach(p=>unique.set(String(p.id||p.number),p));
+  relatedPromos=[...unique.values()];
   renderRelatedPromos();
 }
 
@@ -893,6 +904,7 @@ function promoPriceForCard(card,promo){
 }
 
 let language='Engels', sets=[], filteredSets=[], selectedSet=null, setDetail=null, cards=[], level='basic', condition='near-mint', pricesLoading=false;
+let loadGeneration=0, searchTimer=null;
 const excludedRows=new Set();
 
 const $=id=>document.getElementById(id);
@@ -927,6 +939,8 @@ function renderLangs(){
 }
 
 async function loadSets(){
+  ++loadGeneration;
+  clearTimeout(searchTimer);
   clearStatus();
   $('search').disabled=true;
   $('setSelect').disabled=true;
@@ -1017,48 +1031,84 @@ $('search').addEventListener('input',()=>{
   const q=$('search').value.trim().toLowerCase();
   filteredSets=sets.filter(s=>`${displayName(s)} ${s.name||''} ${s.sourceId}`.toLowerCase().includes(q));
   renderSetOptions();
-  if(filteredSets.length) chooseSet(filteredSets[0].id);
+
+  clearTimeout(searchTimer);
+  if(filteredSets.length){
+    const targetId=filteredSets[0].id;
+    $('setSelect').value=targetId;
+    searchTimer=setTimeout(()=>chooseSet(targetId),400);
+  }
 });
-$('setSelect').addEventListener('change',e=>chooseSet(e.target.value));
+$('setSelect').addEventListener('change',e=>{
+  clearTimeout(searchTimer);
+  chooseSet(e.target.value);
+});
 
 async function chooseSet(id){
+  const generation=++loadGeneration;
+  const setRef=sets.find(s=>s.id===id);
+  if(!setRef) return;
+
   excludedRows.clear();
   relatedPromos=[];
-  selectedSet=sets.find(s=>s.id===id);
-  if(!selectedSet) return;
+  cards=[];
+  setDetail=null;
+  pricesLoading=false;
+  selectedSet=setRef;
   $('setSelect').value=id;
   clearStatus();
+  updateResult();
+
   try{
-    setDetail=await fetchTimeout(`${API}/${selectedSet.apiCode}/sets/${encodeURIComponent(selectedSet.sourceId)}`,8000);
+    const detail=await fetchTimeout(`${API}/${setRef.apiCode}/sets/${encodeURIComponent(setRef.sourceId)}`,8000);
+    if(generation!==loadGeneration) return;
+
+    setDetail=detail;
     $('setInfo').classList.add('show');
-    $('setName').textContent=displayName(selectedSet);
-    const date=setDetail.releaseDate?new Date(setDetail.releaseDate+'T12:00:00').toLocaleDateString('nl-NL',{day:'numeric',month:'long',year:'numeric'}):'Releasedatum onbekend';
-    const seriesLabel=language==='Engels'?(setDetail.serie?.name||LANGS[language].short):LANGS[language].label;
+    $('setName').textContent=displayName(setRef);
+    const date=detail.releaseDate?new Date(detail.releaseDate+'T12:00:00').toLocaleDateString('nl-NL',{day:'numeric',month:'long',year:'numeric'}):'Releasedatum onbekend';
+    const seriesLabel=language==='Engels'?(detail.serie?.name||LANGS[language].short):LANGS[language].label;
     $('setMeta').textContent=`${seriesLabel} · ${date}`;
-    if(setDetail.logo){
-      $('setLogo').src=setDetail.logo+'.webp';
+    if(detail.logo){
+      $('setLogo').src=detail.logo+'.webp';
       $('setLogo').style.display='block';
     }else $('setLogo').style.display='none';
-    await loadCardPrices();
+
+    await loadCardPrices(generation,setRef,detail);
   }catch(e){
+    if(generation!==loadGeneration) return;
+    pricesLoading=false;
+    $('loadingBox').style.display='none';
     status('De gekozen set kon niet worden geladen. Kies eventueel een andere set.', 'err');
   }
 }
 
-async function loadCardPrices(){
-  if(!setDetail) return;
-  cards=[];
+async function loadCardPrices(generation,setRef,detail){
+  if(!detail || generation!==loadGeneration) return;
+
   pricesLoading=true;
-  const list=Array.isArray(setDetail.cards)?setDetail.cards:[];
+
+  // Extra beveiliging: ook als de API zelf dezelfde kaart dubbel teruggeeft,
+  // laden we ieder kaart-ID maar één keer.
+  const uniqueInput=new Map();
+  (Array.isArray(detail.cards)?detail.cards:[]).forEach(c=>{
+    const key=String(c?.id||`${c?.localId||''}|${c?.name||''}`);
+    if(!uniqueInput.has(key)) uniqueInput.set(key,c);
+  });
+  const list=[...uniqueInput.values()];
+  const loadedCards=new Map();
+
   $('loadingBox').style.display='block';
   $('loadProgress').style.width='0%';
   $('loadingText').textContent='Kaartprijzen ophalen · 0%';
   updateResult();
 
   for(let i=0;i<list.length;i+=10){
+    if(generation!==loadGeneration) return;
+
     const batch=list.slice(i,i+10);
     const out=await Promise.allSettled(batch.map(async c=>{
-      const d=await fetchTimeout(`${API}/${selectedSet.apiCode}/cards/${encodeURIComponent(c.id)}`,8000);
+      const d=await fetchTimeout(`${API}/${setRef.apiCode}/cards/${encodeURIComponent(c.id)}`,8000);
       const p=d?.pricing?.cardmarket||{};
       const normal=Number.isFinite(p.avg30)?p.avg30:null;
       const holo=Number.isFinite(p['avg30-holo'])?p['avg30-holo']:null;
@@ -1073,13 +1123,28 @@ async function loadCardPrices(){
         updated:p.updated
       };
     }));
-    out.forEach(r=>{if(r.status==='fulfilled')cards.push(r.value)});
+
+    if(generation!==loadGeneration) return;
+
+    out.forEach(r=>{
+      if(r.status!=='fulfilled') return;
+      const v=r.value;
+      const key=String(v.id||`${v.localId||''}|${v.name||''}`);
+      loadedCards.set(key,v);
+    });
+
+    // Publiceer altijd een verse, unieke snapshot; nooit pushen in een gedeelde array.
+    cards=[...loadedCards.values()];
+
     const pct=Math.round(Math.min(i+batch.length,list.length)/Math.max(list.length,1)*100);
     $('loadProgress').style.width=pct+'%';
     $('loadingText').textContent=`Kaartprijzen ophalen · ${pct}%`;
     updateResult();
   }
-  await loadRelatedPromos();
+
+  await loadRelatedPromos(generation,setRef);
+  if(generation!==loadGeneration) return;
+
   pricesLoading=false;
   $('loadingBox').style.display='none';
   updateResult();
@@ -1088,7 +1153,14 @@ async function loadCardPrices(){
 function activeCards(){
   if(!setDetail)return [];
   const official=setDetail.cardCount?.official||0;
-  return cards.filter(c=>level!=='basic'||num(c.localId)<=official);
+  const unique=new Map();
+
+  cards.forEach(c=>{
+    const key=String(c?.id||`${c?.localId||''}|${c?.name||''}`);
+    if(!unique.has(key)) unique.set(key,c);
+  });
+
+  return [...unique.values()].filter(c=>level!=='basic'||num(c.localId)<=official);
 }
 
 function rowSelectionKey(row){
@@ -1099,8 +1171,13 @@ function buildValueRows(){
   if(!setDetail) return [];
   const chosen=activeCards();
   const rows=[];
+  const seenRows=new Set();
 
   const addRow=(c,variant,price,isPromo=false)=>{
+    const identity=String(c?.id||`${c?.localId||''}|${c?.name||''}`);
+    const rowKey=`${identity}|||${variant||''}`;
+    if(seenRows.has(rowKey)) return;
+    seenRows.add(rowKey);
     rows.push({...c,variant,price,isPromo});
   };
 
@@ -1149,7 +1226,12 @@ function calc(){
   };
 
   const factor=CONDITIONS[condition]?.factor||1;
-  const allRows=buildValueRows().map(r=>{
+  const uniqueRows=new Map();
+  buildValueRows().forEach(r=>{
+    const key=rowSelectionKey(r);
+    if(!uniqueRows.has(key)) uniqueRows.set(key,r);
+  });
+  const allRows=[...uniqueRows.values()].map(r=>{
     const selectionKey=rowSelectionKey(r);
     return {...r,selectionKey,included:!excludedRows.has(selectionKey)};
   });

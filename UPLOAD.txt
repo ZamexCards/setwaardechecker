@@ -1,3 +1,7 @@
 Upload index.html en .nojekyll naar de hoofdmap van de GitHub repository.
-Nieuw: iedere promo toont nu de promo-setcode, bijvoorbeeld SVP, SWSH of MEP.
-De setcode staat ook als aparte kolom in het PDF-prijsoverzicht.
+Fix 2026-10-10:
+- oude kaartloads worden ongeldig bij een nieuwe setkeuze
+- zoeken is gedebounced en start niet bij iedere letter een volledige load
+- kaartdata wordt uniek gemaakt op kaart-ID
+- waarderegels worden uniek gemaakt op kaart-ID + uitvoering
+- oude sets kunnen geen kaarten meer in een nieuw geselecteerde set injecteren
